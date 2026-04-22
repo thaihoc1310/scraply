@@ -1,0 +1,249 @@
+package com.example.scraply.data.remote
+
+import android.content.Context
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+
+data class FeedPost(
+    val id: String,
+    val projectId: String,
+    val imageUrl: String,
+    val canvasJson: String,
+    val userId: String,
+    val username: String?,
+    val avatarUrl: String?,
+    val likeCount: Long,
+    val commentCount: Long,
+    val createdAt: Long,
+    val likedByMe: Boolean = false,
+    val savedByMe: Boolean = false,
+)
+
+data class FeedComment(
+    val id: String,
+    val userId: String,
+    val username: String?,
+    val avatarUrl: String?,
+    val text: String,
+    val createdAt: Long,
+)
+
+/**
+ * Firestore-backed social layer (REQUIREMENTS §8, §11.3).
+ *
+ *   published_scrapbooks/{id}            -- posts
+ *   published_scrapbooks/{id}/comments   -- subcollection
+ *   published_scrapbooks/{id}/likes/{uid}
+ *   published_scrapbooks/{id}/saves/{uid}
+ *   follows/{followerId_followeeId}
+ */
+class SocialRepository(
+    private val appContext: Context,
+    private val storage: StorageRepository,
+) {
+    private val firestore = Firebase.firestore
+
+    private val postsRef = firestore.collection("published_scrapbooks")
+    private val followsRef = firestore.collection("follows")
+    private val usersRef = firestore.collection("users")
+
+    /**
+     * Publishes a rendered scrapbook image + canvas data to the feed.
+     * @param localImagePath path to the exported PNG on disk.
+     */
+    suspend fun publishScrapbook(
+        uid: String,
+        projectId: String,
+        localImagePath: String,
+        canvasJson: String,
+    ): String {
+        val docRef = postsRef.document()
+        val postId = docRef.id
+        val imageUrl = storage.uploadPostImage(uid, postId, localImagePath)
+        val data = mapOf(
+            "id" to postId,
+            "projectId" to projectId,
+            "imageUrl" to imageUrl,
+            "canvasJson" to canvasJson,
+            "userId" to uid,
+            "likeCount" to 0L,
+            "commentCount" to 0L,
+            "createdAt" to FieldValue.serverTimestamp(),
+        )
+        docRef.set(data).await()
+        return postId
+    }
+
+    /**
+     * Posts authored by the given uid, newest first. Drives the profile tab grid.
+     */
+    fun observeMyPosts(uid: String): Flow<List<FeedPost>> = callbackFlow {
+        val q = postsRef
+            .whereEqualTo("userId", uid)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(60)
+        val reg = q.addSnapshotListener { snap, err ->
+            if (err != null || snap == null) return@addSnapshotListener
+            trySend(
+                snap.documents.mapNotNull { d ->
+                    FeedPost(
+                        id = d.getString("id") ?: d.id,
+                        projectId = d.getString("projectId") ?: return@mapNotNull null,
+                        imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
+                        canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
+                        userId = d.getString("userId") ?: return@mapNotNull null,
+                        username = null,
+                        avatarUrl = null,
+                        likeCount = d.getLong("likeCount") ?: 0,
+                        commentCount = d.getLong("commentCount") ?: 0,
+                        createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                    )
+                }
+            )
+        }
+        awaitClose { reg.remove() }
+    }
+
+    suspend fun deletePost(postId: String, uid: String) {
+        val doc = postsRef.document(postId).get().await()
+        require(doc.getString("userId") == uid) { "You can only delete your own posts." }
+        postsRef.document(postId).delete().await()
+    }
+
+    /**
+     * Returns a real-time feed. Sorted by createdAt desc; followed-users-first ordering is applied
+     * client-side by pulling the follow set and reshuffling.
+     */
+    fun observeFeed(currentUid: String?): Flow<List<FeedPost>> = callbackFlow {
+        val q = postsRef.orderBy("createdAt", Query.Direction.DESCENDING).limit(50)
+        val registration = q.addSnapshotListener { snap, err ->
+            if (err != null || snap == null) return@addSnapshotListener
+            val posts = snap.documents.mapNotNull { d ->
+                FeedPost(
+                    id = d.getString("id") ?: d.id,
+                    projectId = d.getString("projectId") ?: return@mapNotNull null,
+                    imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
+                    canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
+                    userId = d.getString("userId") ?: return@mapNotNull null,
+                    username = null,
+                    avatarUrl = null,
+                    likeCount = d.getLong("likeCount") ?: 0,
+                    commentCount = d.getLong("commentCount") ?: 0,
+                    createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                )
+            }
+            trySend(posts)
+        }
+        awaitClose { registration.remove() }
+    }
+
+    suspend fun hydratePostAuthors(posts: List<FeedPost>): List<FeedPost> {
+        val uids = posts.map { it.userId }.distinct()
+        val userDocs = uids.mapNotNull { uid ->
+            runCatching { usersRef.document(uid).get().await() }.getOrNull()
+        }.associateBy { it.id }
+        return posts.map { post ->
+            val u = userDocs[post.userId]
+            post.copy(
+                username = u?.getString("username") ?: u?.getString("displayName"),
+                avatarUrl = u?.getString("avatarUrl"),
+            )
+        }
+    }
+
+    /** Followed-users-first ordering (REQUIREMENTS AC-8.3). */
+    suspend fun rankByFollows(currentUid: String, posts: List<FeedPost>): List<FeedPost> {
+        val followed = followsRef.whereEqualTo("followerId", currentUid).get().await()
+            .documents.mapNotNull { it.getString("followeeId") }.toSet()
+        return posts.sortedWith(
+            compareByDescending<FeedPost> { it.userId in followed }.thenByDescending { it.createdAt }
+        )
+    }
+
+    suspend fun toggleLike(postId: String, uid: String): Boolean {
+        val likeDoc = postsRef.document(postId).collection("likes").document(uid)
+        val snap = likeDoc.get().await()
+        val postDoc = postsRef.document(postId)
+        return if (snap.exists()) {
+            likeDoc.delete().await()
+            postDoc.update("likeCount", FieldValue.increment(-1)).await()
+            false
+        } else {
+            likeDoc.set(mapOf("createdAt" to FieldValue.serverTimestamp())).await()
+            postDoc.update("likeCount", FieldValue.increment(1)).await()
+            true
+        }
+    }
+
+    suspend fun toggleSave(postId: String, uid: String): Boolean {
+        val doc = postsRef.document(postId).collection("saves").document(uid)
+        val snap = doc.get().await()
+        return if (snap.exists()) {
+            doc.delete().await(); false
+        } else {
+            doc.set(mapOf("createdAt" to FieldValue.serverTimestamp())).await(); true
+        }
+    }
+
+    suspend fun addComment(postId: String, uid: String, text: String) {
+        val col = postsRef.document(postId).collection("comments")
+        col.add(
+            mapOf(
+                "userId" to uid,
+                "text" to text,
+                "createdAt" to FieldValue.serverTimestamp(),
+            )
+        ).await()
+        postsRef.document(postId).update("commentCount", FieldValue.increment(1)).await()
+    }
+
+    fun observeComments(postId: String): Flow<List<FeedComment>> = callbackFlow {
+        val reg = postsRef.document(postId).collection("comments")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) return@addSnapshotListener
+                trySend(
+                    snap.documents.map { d ->
+                        FeedComment(
+                            id = d.id,
+                            userId = d.getString("userId") ?: "",
+                            username = null,
+                            avatarUrl = null,
+                            text = d.getString("text") ?: "",
+                            createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                        )
+                    }
+                )
+            }
+        awaitClose { reg.remove() }
+    }
+
+    suspend fun toggleFollow(followerId: String, followeeId: String): Boolean {
+        val id = "${followerId}_${followeeId}"
+        val ref = followsRef.document(id)
+        val existing = ref.get().await()
+        return if (existing.exists()) {
+            ref.delete().await()
+            usersRef.document(followerId).update("followingCount", FieldValue.increment(-1)).await()
+            usersRef.document(followeeId).update("followerCount", FieldValue.increment(-1)).await()
+            false
+        } else {
+            ref.set(
+                mapOf(
+                    "followerId" to followerId,
+                    "followeeId" to followeeId,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                )
+            ).await()
+            usersRef.document(followerId).update("followingCount", FieldValue.increment(1)).await()
+            usersRef.document(followeeId).update("followerCount", FieldValue.increment(1)).await()
+            true
+        }
+    }
+}
