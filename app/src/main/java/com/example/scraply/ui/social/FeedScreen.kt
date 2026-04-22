@@ -1,0 +1,155 @@
+package com.example.scraply.ui.social
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.example.scraply.data.remote.FeedPost
+import com.example.scraply.ui.vm.scraplyViewModel
+
+@Composable
+fun FeedScreen() {
+    val vm: FeedViewModel = scraplyViewModel()
+    val feedState by vm.feed.collectAsState()
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+    ) {
+        Spacer(Modifier.height(40.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Explore, contentDescription = null)
+            }
+            Spacer(Modifier.width(12.dp))
+            Text("Feed", style = MaterialTheme.typography.titleLarge)
+        }
+
+        AuthGate(
+            vm = vm,
+            signedOutHeadline = "Welcome back",
+            signedOutSubtext = "Sign in to explore scrapbooks from the community.",
+        ) {
+            FeedList(feed = feedState.feed, onLike = { vm.toggleLike(it) })
+        }
+    }
+}
+
+@Composable
+private fun FeedList(feed: List<FeedPost>, onLike: (FeedPost) -> Unit) {
+    if (feed.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "No posts yet. Publish a scrapbook to start the feed!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        items(feed, key = { it.id }) { post -> FeedCard(post, onLike = { onLike(post) }) }
+    }
+}
+
+@Composable
+private fun FeedCard(post: FeedPost, onLike: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (post.avatarUrl != null) {
+                    AsyncImage(
+                        model = post.avatarUrl, contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Text(
+                        (post.username ?: "?").take(1).uppercase(),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                post.username ?: post.userId.take(6),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        AsyncImage(
+            model = post.imageUrl, contentDescription = null,
+            modifier = Modifier.fillMaxWidth().aspectRatio(0.8f)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color(0x22000000)),
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onLike) {
+                Icon(
+                    if (post.likedByMe) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = "Like",
+                    tint = if (post.likedByMe) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Text("${post.likeCount}")
+            Spacer(Modifier.width(12.dp))
+            Icon(Icons.Filled.ChatBubbleOutline, contentDescription = "Comments")
+            Spacer(Modifier.width(4.dp))
+            Text("${post.commentCount}")
+        }
+    }
+}
