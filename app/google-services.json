@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "31918380569",
+    "project_id": "scraply-9aa2d",
+    "storage_bucket": "scraply-9aa2d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31918380569:android:e022658f9cb9f16d593c88",
+        "android_client_info": {
+          "package_name": "com.example.scraply"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "31918380569-4ttkm42f1r37alq8okiutum8802r9vrr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.scraply",
+            "certificate_hash": "3d3e3d9e3947beb8ff2251786684b90a23c0f180"
+          }
+        },
+        {
+          "client_id": "31918380569-punfqs2valkqhb5nldj555e1nf53auod.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJL-o-O20wgA_GehX5X4YtnoYXT9mXi74"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "31918380569-punfqs2valkqhb5nldj555e1nf53auod.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

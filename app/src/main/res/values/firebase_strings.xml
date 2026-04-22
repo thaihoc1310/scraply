@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Replace this with the Web Client ID (OAuth 2.0 client of type "Web application")
+        from Firebase Console > Authentication > Sign-in method > Google > Web SDK configuration.
+        It is required by Credential Manager / Google Sign-In.
+        Leave as-is to keep the build compiling while Firebase is not yet configured.
+    -->
+    <string name="default_web_client_id" translatable="false">31918380569-punfqs2valkqhb5nldj555e1nf53auod.apps.googleusercontent.com</string>
+
+    <!--
+        Supabase Storage configuration (replaces Firebase Storage).
+          - supabase_url:      https://<project-ref>.supabase.co
+          - supabase_anon_key: the `anon` / public API key from Supabase dashboard > Settings > API.
+            Safe to ship in-app; bucket permissions enforce access control.
+
+        Leave the placeholders to keep builds compiling while Supabase is not yet configured.
+        The app will fall back to offline-only uploads (publishing to feed will fail) in that case.
+    -->
+    <string name="supabase_url" translatable="false">https://dihibedrjfkzllvlfcyc.supabase.co</string>
+    <string name="supabase_anon_key" translatable="false">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRpaGliZWRyamZremxsdmxmY3ljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NjgxNjIsImV4cCI6MjA5MjQ0NDE2Mn0.atW950jxzh4nI9xTuLMgQvbrC4PJbxvW0W7Q-CRTwk0</string>
+</resources>

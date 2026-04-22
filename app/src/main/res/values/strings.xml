@@ -1,3 +1,36 @@
 <resources>
     <string name="app_name">Scraply</string>
+
+    <string name="tab_stamp">Stamp</string>
+    <string name="tab_collection">Collection</string>
+    <string name="tab_editor">Editor</string>
+    <string name="tab_calendar">Calendar</string>
+
+    <string name="pinch_to_zoom">Pinch to zoom</string>
+    <string name="retake">Retake</string>
+    <string name="save_to_book">Save to Book</string>
+    <string name="title_hint">Give it a title</string>
+    <string name="caption_hint">What do you see?</string>
+    <string name="optional">Optional</string>
+
+    <string name="all_stamps">All Stamps</string>
+    <string name="collections">Collections</string>
+    <string name="editor">Editor</string>
+    <string name="projects">Projects</string>
+
+    <string name="upload_stamp">Upload Stamp</string>
+    <string name="choose_photo">Choose Photo</string>
+    <string name="cut_stamp">Cut Stamp</string>
+    <string name="pick_photo_prompt">Pick a photo to cut a stamp</string>
+    <string name="drag_pinch_hint">Drag image. Pinch to zoom.</string>
+    <string name="close">Close</string>
+
+    <string name="edit_assets">Edit Assets</string>
+    <string name="done">Done</string>
+    <string name="backgrounds">Backgrounds</string>
+    <string name="assets">Assets</string>
+    <string name="text">Text</string>
+
+    <string name="camera_permission_rationale">Scraply needs camera access to capture stamps.</string>
+    <string name="grant_permission">Grant permission</string>
 </resources>
