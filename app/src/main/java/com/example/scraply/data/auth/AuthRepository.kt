@@ -7,6 +7,7 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.example.scraply.R
+import com.example.scraply.notifications.NotificationTokenManager
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -130,6 +131,7 @@ class AuthRepository(
             email = fu.email,
         )
         upsertProfile(profile)
+        registerPushToken(profile.uid)
         profile
     }
 
@@ -238,6 +240,7 @@ class AuthRepository(
         val fu = authResult.user ?: error("Firebase user is null after sign-in")
         val profile = fu.toScraplyUser()
         upsertProfile(profile)
+        registerPushToken(profile.uid)
         profile
     }
 
@@ -263,7 +266,12 @@ class AuthRepository(
         }
         val profile = auth.currentUser?.toScraplyUser() ?: fu.toScraplyUser()
         upsertProfile(profile)
+        registerPushToken(profile.uid)
         profile
+    }
+
+    private suspend fun registerPushToken(uid: String) {
+        runCatching { NotificationTokenManager.saveCurrentToken(uid) }
     }
 
     suspend fun sendPasswordReset(email: String): Result<Unit> = runCatching {
@@ -280,6 +288,12 @@ class AuthRepository(
     )
 
     suspend fun signOut() {
+        // Unregister the push token for the *current* device before the auth state is
+        // cleared – once signOut() is called we lose the uid needed to locate the doc.
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            runCatching { NotificationTokenManager.removeCurrentToken(uid) }
+        }
         auth.signOut()
         try {
             credentialManager.clearCredentialState(

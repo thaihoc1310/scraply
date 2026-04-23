@@ -24,6 +24,7 @@ import com.example.scraply.ui.collection.UploadStampScreen
 import com.example.scraply.ui.editor.EditorProjectsScreen
 import com.example.scraply.ui.editor.EditorViewModel
 import com.example.scraply.ui.editor.ScrapbookEditorScreen
+import com.example.scraply.ui.notifications.NotificationsScreen
 import com.example.scraply.ui.social.FeedScreen
 import com.example.scraply.ui.social.ProfileScreen
 import com.example.scraply.ui.stamp.StampCameraScreen
@@ -193,7 +194,13 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             }
 
             composable(Routes.PROFILE) {
-                ProfileScreen()
+                ProfileScreen(
+                    onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                )
+            }
+
+            composable(Routes.NOTIFICATIONS) {
+                NotificationsScreen(onBack = { navController.popBackStack() })
             }
         }
     }

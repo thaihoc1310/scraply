@@ -1,5 +1,6 @@
 package com.example.scraply.ui.social
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.scraply.data.auth.AuthRepository
 import com.example.scraply.data.auth.ScraplyUser
@@ -53,6 +54,9 @@ class FeedViewModel(
     fun toggleLike(post: FeedPost) {
         val social = socialRepository ?: return
         val uid = authState.value.user?.uid ?: return
-        viewModelScope.launch { runCatching { social.toggleLike(post.id, uid) } }
+        viewModelScope.launch {
+            runCatching { social.toggleLike(post.id, uid) }
+                .onFailure { Log.e("FeedVM", "toggleLike failed for post=${post.id}", it) }
+        }
     }
 }

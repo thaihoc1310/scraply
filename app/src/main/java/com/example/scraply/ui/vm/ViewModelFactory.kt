@@ -9,6 +9,7 @@ import com.example.scraply.data.ScraplyContainer
 import com.example.scraply.ui.calendar.CalendarViewModel
 import com.example.scraply.ui.collection.CollectionsViewModel
 import com.example.scraply.ui.editor.EditorViewModel
+import com.example.scraply.ui.notifications.NotificationsViewModel
 import com.example.scraply.ui.social.FeedViewModel
 import com.example.scraply.ui.social.ProfileViewModel
 import com.example.scraply.ui.stamp.StampCaptureViewModel
@@ -52,6 +53,11 @@ class ScraplyViewModelFactory(
                     firestoreSync = container.firestoreSyncRepository,
                     socialRepository = container.socialRepository,
                     storageRepository = container.storageRepository,
+                ) as T
+            NotificationsViewModel::class.java ->
+                NotificationsViewModel(
+                    authRepository = container.authRepository,
+                    notificationsRepository = container.notificationsRepository,
                 ) as T
             else -> throw IllegalArgumentException("Unknown VM: $modelClass")
         }

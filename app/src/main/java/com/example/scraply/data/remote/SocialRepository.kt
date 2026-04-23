@@ -46,12 +46,27 @@ data class FeedComment(
 class SocialRepository(
     private val appContext: Context,
     private val storage: StorageRepository,
+    private val notifications: NotificationsRepository = NotificationsRepository(),
 ) {
     private val firestore = Firebase.firestore
 
     private val postsRef = firestore.collection("published_scrapbooks")
     private val followsRef = firestore.collection("follows")
     private val usersRef = firestore.collection("users")
+
+    private suspend fun actorProfile(uid: String): Triple<String?, String?, String?> {
+        val snap = runCatching { usersRef.document(uid).get().await() }.getOrNull() ?: return Triple(null, null, null)
+        val name = snap.getString("displayName") ?: snap.getString("username")
+        val avatar = snap.getString("avatarUrl")
+        return Triple(uid, name, avatar)
+    }
+
+    private suspend fun postSummary(postId: String): Pair<String?, String?> {
+        val snap = runCatching { postsRef.document(postId).get().await() }.getOrNull() ?: return null to null
+        val owner = snap.getString("userId")
+        val image = snap.getString("imageUrl")
+        return owner to image
+    }
 
     /**
      * Publishes a rendered scrapbook image + canvas data to the feed.
@@ -177,6 +192,23 @@ class SocialRepository(
         } else {
             likeDoc.set(mapOf("createdAt" to FieldValue.serverTimestamp())).await()
             postDoc.update("likeCount", FieldValue.increment(1)).await()
+            runCatching {
+                val (ownerUid, postImage) = postSummary(postId)
+                if (ownerUid != null) {
+                    val (actorId, actorName, actorAvatar) = actorProfile(uid)
+                    notifications.create(
+                        targetUid = ownerUid,
+                        type = NotificationType.LIKE,
+                        actorId = actorId,
+                        actorName = actorName,
+                        actorAvatar = actorAvatar,
+                        postId = postId,
+                        postImageUrl = postImage,
+                        text = "liked your scrapbook",
+                        dedupeKey = "like_${postId}_$uid",
+                    )
+                }
+            }
             true
         }
     }
@@ -193,7 +225,7 @@ class SocialRepository(
 
     suspend fun addComment(postId: String, uid: String, text: String) {
         val col = postsRef.document(postId).collection("comments")
-        col.add(
+        val added = col.add(
             mapOf(
                 "userId" to uid,
                 "text" to text,
@@ -201,6 +233,23 @@ class SocialRepository(
             )
         ).await()
         postsRef.document(postId).update("commentCount", FieldValue.increment(1)).await()
+        runCatching {
+            val (ownerUid, postImage) = postSummary(postId)
+            if (ownerUid != null) {
+                val (actorId, actorName, actorAvatar) = actorProfile(uid)
+                notifications.create(
+                    targetUid = ownerUid,
+                    type = NotificationType.COMMENT,
+                    actorId = actorId,
+                    actorName = actorName,
+                    actorAvatar = actorAvatar,
+                    postId = postId,
+                    postImageUrl = postImage,
+                    text = "commented: ${text.take(80)}",
+                    dedupeKey = "comment_${postId}_${added.id}",
+                )
+            }
+        }
     }
 
     fun observeComments(postId: String): Flow<List<FeedComment>> = callbackFlow {
@@ -243,6 +292,18 @@ class SocialRepository(
             ).await()
             usersRef.document(followerId).update("followingCount", FieldValue.increment(1)).await()
             usersRef.document(followeeId).update("followerCount", FieldValue.increment(1)).await()
+            runCatching {
+                val (actorId, actorName, actorAvatar) = actorProfile(followerId)
+                notifications.create(
+                    targetUid = followeeId,
+                    type = NotificationType.FOLLOW,
+                    actorId = actorId,
+                    actorName = actorName,
+                    actorAvatar = actorAvatar,
+                    text = "started following you",
+                    dedupeKey = "follow_${followerId}_$followeeId",
+                )
+            }
             true
         }
     }

@@ -7,6 +7,7 @@ object Routes {
     const val CALENDAR = "calendar"
     const val FEED = "feed"
     const val PROFILE = "profile"
+    const val NOTIFICATIONS = "notifications"
 
     const val STAMP_CAMERA = "stamp/camera"
     const val STAMP_CROP = "stamp/crop/{sourceUri}"

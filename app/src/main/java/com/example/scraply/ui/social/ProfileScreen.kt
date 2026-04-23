@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -60,16 +61,19 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scraply.data.auth.ScraplyUser
 import com.example.scraply.data.remote.FeedPost
+import com.example.scraply.ui.notifications.NotificationsViewModel
 import com.example.scraply.ui.vm.scraplyViewModel
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(onOpenNotifications: () -> Unit = {}) {
     val vm: ProfileViewModel = scraplyViewModel()
+    val notificationsVm: NotificationsViewModel = scraplyViewModel()
     val authState by vm.authState.collectAsState()
     val profileState by vm.profile.collectAsState()
+    val notifState by notificationsVm.state.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
@@ -82,6 +86,10 @@ fun ProfileScreen() {
             Text("Profile", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.weight(1f))
             if (authState.isSignedIn) {
+                BellWithBadge(
+                    unreadCount = notifState.unreadCount,
+                    onClick = onOpenNotifications,
+                )
                 IconButton(onClick = { vm.signOut() }) {
                     Icon(Icons.Filled.Logout, contentDescription = "Sign out")
                 }
@@ -445,6 +453,33 @@ private fun EditProfileDialog(
             }
         },
     )
+}
+
+@Composable
+private fun BellWithBadge(unreadCount: Int, onClick: () -> Unit) {
+    Box {
+        IconButton(onClick = onClick) {
+            Icon(Icons.Filled.Notifications, contentDescription = "Notifications")
+        }
+        if (unreadCount > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 6.dp)
+                    .size(16.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.error),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    if (unreadCount > 9) "9+" else unreadCount.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+    }
 }
 
 private fun copyUriToCache(ctx: android.content.Context, uri: Uri): String? {

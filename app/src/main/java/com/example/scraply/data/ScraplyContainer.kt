@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.scraply.data.auth.AuthRepository
 import com.example.scraply.data.local.ScraplyDatabase
 import com.example.scraply.data.remote.FirestoreSyncRepository
+import com.example.scraply.data.remote.NotificationsRepository
 import com.example.scraply.data.remote.SocialRepository
 import com.example.scraply.data.remote.StorageRepository
 import com.example.scraply.data.repository.CollectionRepository
@@ -40,9 +41,11 @@ class ScraplyContainer(context: Context) {
         if (firebaseAvailable && storageRepository != null)
             FirestoreSyncRepository(appContext, db, storageRepository)
         else null
+    val notificationsRepository: NotificationsRepository? =
+        if (firebaseAvailable) NotificationsRepository() else null
     val socialRepository: SocialRepository? =
-        if (firebaseAvailable && storageRepository != null)
-            SocialRepository(appContext, storageRepository)
+        if (firebaseAvailable && storageRepository != null && notificationsRepository != null)
+            SocialRepository(appContext, storageRepository, notificationsRepository)
         else null
 
     val collectionRepository: CollectionRepository = CollectionRepository(
