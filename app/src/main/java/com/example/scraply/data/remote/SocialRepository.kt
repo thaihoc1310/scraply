@@ -21,6 +21,8 @@ data class FeedPost(
     val likeCount: Long,
     val commentCount: Long,
     val createdAt: Long,
+    val title: String? = null,
+    val description: String? = null,
     val likedByMe: Boolean = false,
     val savedByMe: Boolean = false,
 )
@@ -77,11 +79,13 @@ class SocialRepository(
         projectId: String,
         localImagePath: String,
         canvasJson: String,
+        title: String? = null,
+        description: String? = null,
     ): String {
         val docRef = postsRef.document()
         val postId = docRef.id
         val imageUrl = storage.uploadPostImage(uid, postId, localImagePath)
-        val data = mapOf(
+        val data = mutableMapOf<String, Any?>(
             "id" to postId,
             "projectId" to projectId,
             "imageUrl" to imageUrl,
@@ -91,6 +95,8 @@ class SocialRepository(
             "commentCount" to 0L,
             "createdAt" to FieldValue.serverTimestamp(),
         )
+        if (!title.isNullOrBlank()) data["title"] = title.take(1000)
+        if (!description.isNullOrBlank()) data["description"] = description.take(1000)
         docRef.set(data).await()
         return postId
     }
@@ -118,6 +124,8 @@ class SocialRepository(
                         likeCount = d.getLong("likeCount") ?: 0,
                         commentCount = d.getLong("commentCount") ?: 0,
                         createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                        title = d.getString("title"),
+                        description = d.getString("description"),
                     )
                 }
             )
@@ -151,6 +159,8 @@ class SocialRepository(
                     likeCount = d.getLong("likeCount") ?: 0,
                     commentCount = d.getLong("commentCount") ?: 0,
                     createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                    title = d.getString("title"),
+                    description = d.getString("description"),
                 )
             }
             trySend(posts)

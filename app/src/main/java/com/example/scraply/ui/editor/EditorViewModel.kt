@@ -2,6 +2,8 @@ package com.example.scraply.ui.editor
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.scraply.data.model.CanvasElement
@@ -184,11 +186,22 @@ class EditorViewModel(
         if (_selectedId.value == id) _selectedId.value = null
     }
 
-    suspend fun exportToGallery(bitmap: Bitmap): Boolean = withContext(Dispatchers.IO) {
-        val name = _current.value?.name ?: "Scraply"
-        val safe = name.replace(Regex("[^A-Za-z0-9_-]"), "_")
-        val finalName = "${safe}_${System.currentTimeMillis()}"
-        ImageUtils.saveToGallery(appContext, bitmap, finalName) != null
+    suspend fun shareBitmap(bitmap: Bitmap): Uri? = withContext(Dispatchers.IO) {
+        val dir = File(appContext.cacheDir, "shared").apply { mkdirs() }
+        val file = File(dir, "share_${System.currentTimeMillis()}.png")
+        try {
+            FileOutputStream(file).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+            FileProvider.getUriForFile(
+                appContext,
+                "${appContext.packageName}.fileprovider",
+                file
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     fun dismissPublishState() {
@@ -205,7 +218,7 @@ class EditorViewModel(
      *  3. The resulting post shows up in the Feed tab for everyone, and in the Profile tab grid
      *     for the author.
      */
-    fun publishToFeed(bitmap: Bitmap) {
+    fun publishToFeed(bitmap: Bitmap, title: String? = null, description: String? = null) {
         val project = _current.value ?: return
         val auth = authRepository ?: run {
             _publish.value = PublishState.Error("Firebase is not configured.")
@@ -234,6 +247,8 @@ class EditorViewModel(
                     projectId = project.id,
                     localImagePath = file.absolutePath,
                     canvasJson = CanvasState.toJson(_canvas.value),
+                    title = title,
+                    description = description,
                 )
             }
             result

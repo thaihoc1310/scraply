@@ -2,6 +2,7 @@ package com.example.scraply.ui.social
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scraply.data.remote.FeedPost
@@ -150,6 +150,23 @@ private fun FeedCard(post: FeedPost, onLike: () -> Unit) {
             Icon(Icons.Filled.ChatBubbleOutline, contentDescription = "Comments")
             Spacer(Modifier.width(4.dp))
             Text("${post.commentCount}")
+        }
+        if (!post.title.isNullOrBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = post.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
+        }
+        if (!post.description.isNullOrBlank()) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = post.description,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 8.dp)
+            )
         }
     }
 }
