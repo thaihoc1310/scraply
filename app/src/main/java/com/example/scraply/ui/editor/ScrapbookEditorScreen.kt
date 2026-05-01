@@ -8,6 +8,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,6 +49,7 @@ import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,6 +77,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
@@ -240,7 +244,13 @@ fun ScrapbookEditorScreen(
                         drawLayer(graphicsLayer)
                     }
                     .pointerInput(Unit) {
-                        detectTapGestures(onTap = { vm.selectElement(null) })
+                        detectTapGestures(onTap = { 
+                            vm.selectElement(null)
+                            if (editingText != null) {
+                                vm.onTransformEnd()
+                            }
+                            editingText = null
+                        })
                     },
             ) {
                 BackgroundSurface(backgroundType = background, modifier = Modifier.fillMaxSize())
@@ -251,9 +261,20 @@ fun ScrapbookEditorScreen(
                         stamps = stamps,
                         selected = element.id == selectedId,
                         canvasSize = canvasSize,
-                        onSelect = { vm.selectElement(element.id) },
+                        isEditing = element.id == editingText,
+                        onSelect = { 
+                            vm.selectElement(element.id)
+                            if (editingText != null && editingText != element.id) {
+                                vm.onTransformEnd()
+                                editingText = null
+                            }
+                        },
                         onUpdate = { updated -> vm.updateElement(element.id) { updated } },
-                        onCommit = { vm.commitTransform() },
+                        onTransformStart = { vm.onTransformStart() },
+                        onTransformEnd = { vm.onTransformEnd() },
+                        onTextChange = { newText ->
+                            vm.updateElement(element.id) { it.copy(text = newText) }
+                        }
                     )
                 }
             }
@@ -296,7 +317,10 @@ fun ScrapbookEditorScreen(
                         }
                         OutlinedButton(
                             onClick = {
-                                if (sel.type == CanvasElementType.TEXT) editingText = id
+                                if (sel.type == CanvasElementType.TEXT) {
+                                    vm.onTransformStart()
+                                    editingText = id
+                                }
                             },
                             shape = RoundedCornerShape(14.dp),
                             enabled = sel.type == CanvasElementType.TEXT,
@@ -460,6 +484,7 @@ fun ScrapbookEditorScreen(
     showStampPicker?.let { mode ->
         StampPickerDialog(
             stamps = stamps,
+            usedStampIds = canvas.elements.mapNotNull { it.stampId }.toSet(),
             onPick = { stamp ->
                 when (mode) {
                     PickerMode.AddStamp -> vm.addElement(
@@ -477,33 +502,7 @@ fun ScrapbookEditorScreen(
         )
     }
 
-    editingText?.let { id ->
-        val sel = canvas.elements.firstOrNull { it.id == id }
-        if (sel != null) {
-            var value by remember(id) { mutableStateOf(sel.text) }
-            AlertDialog(
-                onDismissRequest = { editingText = null },
-                title = { Text("Edit text") },
-                text = {
-                    OutlinedTextField(
-                        value = value,
-                        onValueChange = { value = it },
-                        placeholder = { Text("Your text…") },
-                        shape = RoundedCornerShape(12.dp),
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        vm.updateElement(id) { it.copy(text = value) }
-                        editingText = null
-                    }) { Text("Save") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { editingText = null }) { Text("Cancel") }
-                },
-            )
-        }
-    }
+
 }
 
 private enum class PickerMode { AddStamp, Polaroid }
@@ -514,9 +513,12 @@ private fun CanvasElementOnBoard(
     stamps: List<Stamp>,
     selected: Boolean,
     canvasSize: IntSize,
+    isEditing: Boolean,
     onSelect: () -> Unit,
     onUpdate: (CanvasElement) -> Unit,
-    onCommit: () -> Unit,
+    onTransformStart: () -> Unit,
+    onTransformEnd: () -> Unit,
+    onTextChange: (String) -> Unit,
 ) {
     if (canvasSize == IntSize.Zero) return
     val w = canvasSize.width.toFloat()
@@ -540,6 +542,16 @@ private fun CanvasElementOnBoard(
                 detectTapGestures(onTap = { onSelect() })
             }
             .pointerInput(element.id) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    onTransformStart()
+                    do {
+                        val event = awaitPointerEvent()
+                    } while (event.changes.any { it.pressed })
+                    onTransformEnd()
+                }
+            }
+            .pointerInput(element.id) {
                 detectTransformGestures(panZoomLock = false) { _, pan, zoom, rot ->
                     onSelect()
                     val el = latestElement
@@ -552,8 +564,16 @@ private fun CanvasElementOnBoard(
                     val dx = (pan.x * cosA - pan.y * sinA) * el.scale
                     val dy = (pan.x * sinA + pan.y * cosA) * el.scale
 
-                    val nx = (el.x + dx / w).coerceIn(-0.1f, 1.1f)
-                    val ny = (el.y + dy / h).coerceIn(-0.1f, 1.1f)
+                    val hwN = (size.width * el.scale / 2f) / w
+                    val hhN = (size.height * el.scale / 2f) / h
+
+                    val minX = kotlin.math.min(hwN, 1f - hwN)
+                    val maxX = kotlin.math.max(hwN, 1f - hwN)
+                    val minY = kotlin.math.min(hhN, 1f - hhN)
+                    val maxY = kotlin.math.max(hhN, 1f - hhN)
+
+                    val nx = (el.x + dx / w).coerceIn(minX, maxX)
+                    val ny = (el.y + dy / h).coerceIn(minY, maxY)
                     val ns = (el.scale * zoom).coerceIn(0.2f, 4f)
                     val nr = el.rotation + rot
                     onUpdate(el.copy(x = nx, y = ny, scale = ns, rotation = nr))
@@ -567,7 +587,12 @@ private fun CanvasElementOnBoard(
                 ) else Modifier,
             ),
     ) {
-        CanvasElementView(element = element, stamps = stamps)
+        CanvasElementView(
+            element = element, 
+            stamps = stamps,
+            isEditing = isEditing,
+            onTextChange = onTextChange,
+        )
     }
 }
 
@@ -581,9 +606,18 @@ private fun EditAssetsSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(AssetsTab.Backgrounds) }
     var newText by remember { mutableStateOf("") }
     var font by remember { mutableStateOf(FontPresets.first().first) }
+
+    fun dismissWithAction(action: () -> Unit) {
+        scope.launch {
+            sheetState.hide()
+            action()
+            onDismiss()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -599,7 +633,7 @@ private fun EditAssetsSheet(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = { dismissWithAction {} },
                     shape = RoundedCornerShape(18.dp),
                 ) { Text("Done") }
                 Spacer(Modifier.weight(1f))
@@ -631,16 +665,18 @@ private fun EditAssetsSheet(
             when (tab) {
                 AssetsTab.Backgrounds -> BackgroundsGrid(
                     current = background,
-                    onSelect = onBackground,
+                    onSelect = { dismissWithAction { onBackground(it) } },
                 )
-                AssetsTab.Assets -> AssetCategoriesList(onPick = onPickAsset)
+                AssetsTab.Assets -> AssetCategoriesList(onPick = { dismissWithAction { onPickAsset(it) } })
                 AssetsTab.Text -> TextTab(
                     text = newText,
                     onTextChange = { newText = it },
                     font = font,
                     onFontChange = { font = it },
                     onAdd = {
-                        onAddText(newText.ifBlank { "New text" }, font)
+                        val textToAdd = newText.ifBlank { "New text" }
+                        val fontToAdd = font
+                        dismissWithAction { onAddText(textToAdd, fontToAdd) }
                         newText = ""
                     },
                 )
@@ -926,6 +962,7 @@ private fun PaletteSheet(onPickColor: (Long) -> Unit, onDismiss: () -> Unit) {
 @Composable
 private fun StampPickerDialog(
     stamps: List<Stamp>,
+    usedStampIds: Set<String>,
     onPick: (Stamp) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -943,19 +980,40 @@ private fun StampPickerDialog(
                     modifier = Modifier.height(340.dp),
                 ) {
                     items(stamps, key = { it.id }) { s ->
+                        val isUsed = usedStampIds.contains(s.id)
                         Box(
                             modifier = Modifier
                                 .aspectRatio(0.8f)
                                 .clip(PostageStampShape)
                                 .background(Color.White)
-                                .clickable { onPick(s) },
+                                .clickable(enabled = !isUsed) { onPick(s) },
                         ) {
                             AsyncImage(
                                 model = s.imageUri,
                                 contentDescription = s.title,
                                 contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier.fillMaxSize().let {
+                                    if (isUsed) it.alpha(0.5f) else it
+                                },
                             )
+                            if (isUsed) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    androidx.compose.material3.Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

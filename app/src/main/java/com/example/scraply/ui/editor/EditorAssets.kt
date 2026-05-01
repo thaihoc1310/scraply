@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +26,11 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.IntrinsicSize
 import coil.compose.AsyncImage
 import com.example.scraply.R
 import com.example.scraply.data.model.CanvasElement
@@ -33,10 +39,6 @@ import com.example.scraply.data.model.Stamp
 import com.example.scraply.util.PostageStampShape
 
 val BackgroundOptions = listOf(
-    "paper" to "Paper",
-    "soft_paper" to "Soft Paper",
-    "plain" to "Plain",
-    "grid" to "Grid",
     "bg_chalkboard" to "Chalkboard",
     "bg_cork_board" to "Cork Board",
     "bg_crumpled_white" to "Crumpled White",
@@ -90,13 +92,14 @@ private val backgroundAssetMap = mapOf(
 data class AssetOption(val key: String, val label: String, val type: CanvasElementType)
 
 val TapeAssets = (1..8).map { AssetOption("tape_$it", "Tape %02d".format(it), CanvasElementType.TAPE) }
-val StickerAssets = (1..7).map { AssetOption("sticker_$it", "Sticker %02d".format(it), CanvasElementType.STICKER) }
-val PaperCutAssets = (1..5).map { AssetOption("papercut_$it", "Paper %02d".format(it), CanvasElementType.PAPER_CUT) }
+val StickerAssets = (1..17).map { AssetOption("sticker_$it", "Sticker %02d".format(it), CanvasElementType.STICKER) }
+val PaperCutAssets = (1..6).map { AssetOption("papercut_$it", "Paper Cut %02d".format(it), CanvasElementType.PAPER_CUT) }
 
 /** Maps sticker key to its asset file path in assets/stickers/ */
-private val stickerAssetMap = mapOf(
-    "sticker_avocado" to "stickers/avocado.png",
-)
+private val stickerAssetMap = (1..17).associate { "sticker_$it" to "stickers/sticker_%02d.png".format(it) }
+
+/** Maps papercut key to its asset file path in assets/papercuts/ */
+private val paperCutAssetMap = (1..6).associate { "papercut_$it" to "paper_cuts/paper_cut_%02d.png".format(it) }
 
 /** Maps tape key to its asset file path in assets/tapes/ */
 private val tapeAssetMap = mapOf(
@@ -188,6 +191,8 @@ fun CanvasElementView(
     element: CanvasElement,
     stamps: List<Stamp>,
     modifier: Modifier = Modifier,
+    isEditing: Boolean = false,
+    onTextChange: (String) -> Unit = {},
 ) {
     when (element.type) {
         CanvasElementType.STAMP -> {
@@ -256,46 +261,97 @@ fun CanvasElementView(
             }
         }
         CanvasElementType.STICKER -> {
-            val color = stickerColor(element.assetKey)
-            Canvas(modifier = modifier.size(86.dp)) {
-                val cx = size.width / 2f
-                val cy = size.height / 2f
-                val petals = 8
-                val r = size.minDimension / 2f
-                val petalPath = Path()
-                for (i in 0 until petals) {
-                    val ang = (i * 2 * Math.PI / petals).toFloat()
-                    val px = cx + kotlin.math.cos(ang) * r * 0.85f
-                    val py = cy + kotlin.math.sin(ang) * r * 0.85f
-                    petalPath.addOval(
-                        androidx.compose.ui.geometry.Rect(
-                            left = px - r * 0.32f, top = py - r * 0.2f,
-                            right = px + r * 0.32f, bottom = py + r * 0.2f,
-                        ),
-                    )
+            val assetPath = stickerAssetMap[element.assetKey]
+            if (assetPath != null) {
+                AsyncImage(
+                    model = "file:///android_asset/$assetPath",
+                    contentDescription = element.assetKey,
+                    contentScale = ContentScale.Fit,
+                    modifier = modifier.sizeIn(maxWidth = 150.dp, maxHeight = 150.dp),
+                )
+            } else {
+                val color = stickerColor(element.assetKey)
+                Canvas(modifier = modifier.size(86.dp)) {
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val petals = 8
+                    val r = size.minDimension / 2f
+                    val petalPath = Path()
+                    for (i in 0 until petals) {
+                        val ang = (i * 2 * Math.PI / petals).toFloat()
+                        val px = cx + kotlin.math.cos(ang) * r * 0.85f
+                        val py = cy + kotlin.math.sin(ang) * r * 0.85f
+                        petalPath.addOval(
+                            androidx.compose.ui.geometry.Rect(
+                                left = px - r * 0.32f, top = py - r * 0.2f,
+                                right = px + r * 0.32f, bottom = py + r * 0.2f,
+                            ),
+                        )
+                    }
+                    drawPath(petalPath, color)
+                    drawCircle(Color(0xFFFFF2B0), radius = r * 0.28f, center = androidx.compose.ui.geometry.Offset(cx, cy))
                 }
-                drawPath(petalPath, color)
-                drawCircle(Color(0xFFFFF2B0), radius = r * 0.28f, center = androidx.compose.ui.geometry.Offset(cx, cy))
             }
         }
         CanvasElementType.PAPER_CUT -> {
-            Box(
-                modifier = modifier
-                    .size(width = 140.dp, height = 100.dp)
-                    .background(paperCutTint(element.assetKey), RoundedCornerShape(4.dp)),
-            )
+            val assetPath = paperCutAssetMap[element.assetKey]
+            if (assetPath != null) {
+                AsyncImage(
+                    model = "file:///android_asset/$assetPath",
+                    contentDescription = element.assetKey,
+                    contentScale = ContentScale.Fit,
+                    modifier = modifier.sizeIn(maxWidth = 160.dp, maxHeight = 160.dp),
+                )
+            } else {
+                Box(
+                    modifier = modifier
+                        .size(width = 140.dp, height = 100.dp)
+                        .background(paperCutTint(element.assetKey), RoundedCornerShape(4.dp)),
+                )
+            }
         }
         CanvasElementType.TEXT -> {
             val family = fontFamilyMap[element.font] ?: FontFamily.Serif
-            Text(
-                text = element.text.ifBlank { "Double-tap to edit" },
-                style = TextStyle(
-                    fontFamily = family,
-                    fontSize = 28.sp,
-                    color = Color(element.color.toInt().toLong().let { if (it == 0L) 0xFF1F1B18 else it }),
-                ),
-                modifier = modifier.padding(4.dp),
+            val textStyle = TextStyle(
+                fontFamily = family,
+                fontSize = 28.sp,
+                color = Color(element.color.toInt().toLong().let { if (it == 0L) 0xFF1F1B18 else it }),
             )
+
+            if (isEditing) {
+                val focusRequester = remember { FocusRequester() }
+                val textFieldValue = remember {
+                    androidx.compose.runtime.mutableStateOf(
+                        androidx.compose.ui.text.input.TextFieldValue(
+                            text = element.text,
+                            selection = androidx.compose.ui.text.TextRange(element.text.length)
+                        )
+                    )
+                }
+                
+                androidx.compose.foundation.text.BasicTextField(
+                    value = textFieldValue.value,
+                    onValueChange = {
+                        textFieldValue.value = it
+                        onTextChange(it.text)
+                    },
+                    textStyle = textStyle,
+                    modifier = modifier
+                        .padding(4.dp)
+                        .defaultMinSize(minWidth = 20.dp)
+                        .width(IntrinsicSize.Min)
+                        .focusRequester(focusRequester),
+                )
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
+            } else {
+                Text(
+                    text = element.text.ifBlank { "Double-tap to edit" },
+                    style = textStyle,
+                    modifier = modifier.padding(4.dp),
+                )
+            }
         }
     }
 }

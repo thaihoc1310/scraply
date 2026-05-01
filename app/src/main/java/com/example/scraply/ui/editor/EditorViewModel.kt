@@ -29,6 +29,7 @@ import java.util.UUID
 data class ProjectCard(
     val project: ScrapbookProject,
     val elementCount: Int,
+    val elements: List<CanvasElement> = emptyList()
 )
 
 sealed class PublishState {
@@ -75,8 +76,8 @@ class EditorViewModel(
         viewModelScope.launch {
             projectRepository.observeAll().collect { list ->
                 _projects.value = list.map { p ->
-                    val count = CanvasState.fromJson(p.canvasJson).elements.size
-                    ProjectCard(p, count)
+                    val elements = CanvasState.fromJson(p.canvasJson).elements
+                    ProjectCard(p, elements.size, elements)
                 }
             }
         }
@@ -158,8 +159,22 @@ class EditorViewModel(
         )
     }
 
-    fun commitTransform() {
-        pushUndo()
+    private var preTransformState: CanvasState? = null
+
+    fun onTransformStart() {
+        if (preTransformState == null) {
+            preTransformState = _canvas.value
+        }
+    }
+
+    fun onTransformEnd() {
+        preTransformState?.let {
+            if (it != _canvas.value) {
+                undoStack.addLast(it)
+                if (undoStack.size > 40) undoStack.removeFirst()
+            }
+        }
+        preTransformState = null
     }
 
     fun bringToFront(id: String) {
