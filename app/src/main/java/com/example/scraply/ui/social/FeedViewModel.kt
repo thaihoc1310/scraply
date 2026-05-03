@@ -8,6 +8,7 @@ import com.example.scraply.data.remote.FeedPost
 import com.example.scraply.data.remote.FirestoreSyncRepository
 import com.example.scraply.data.remote.SocialRepository
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,13 +47,32 @@ class FeedViewModel(
                     _feed.value = _feed.value.copy(feed = emptyList(), isLoading = false)
                     return@onEach
                 }
+
+                val currentFeed = _feed.value.feed
                 val merged = raw.map { post ->
-                    if (post.id in pendingLikeIds) {
-                        val current = _feed.value.feed.firstOrNull { it.id == post.id }
-                        if (current != null) post.copy(likedByMe = current.likedByMe, likeCount = current.likeCount) else post
-                    } else post
+                    val existing = currentFeed.find { it.id == post.id }
+                    // Preserve existing hydration info (username/avatar) to avoid flickering to encoded IDs
+                    var updated = post.copy(
+                        username = existing?.username,
+                        avatarUrl = existing?.avatarUrl,
+                        likedByMe = existing?.likedByMe ?: post.likedByMe,
+                        savedByMe = existing?.savedByMe ?: post.savedByMe
+                    )
+
+                    // If we have a pending like/unlike, keep the optimistic state to prevent "jumping"
+                    if (post.id in pendingLikeIds && existing != null) {
+                        updated = updated.copy(
+                            likedByMe = existing.likedByMe,
+                            likeCount = existing.likeCount
+                        )
+                    }
+                    updated
                 }
+
+                // First update with merged/optimistic data so UI stays responsive and names don't flicker
                 _feed.value = _feed.value.copy(feed = merged, isLoading = false)
+
+                // Then perform hydration in background
                 val hydrated = runCatching { social.hydratePostAuthors(merged) }.getOrDefault(merged)
                 val enriched = runCatching { social.hydratePostEngagement(uid, hydrated) }.getOrDefault(hydrated)
                 val ranked = runCatching { social.rankByFollows(uid, enriched) }.getOrDefault(enriched)
@@ -79,7 +99,11 @@ class FeedViewModel(
         )
         viewModelScope.launch {
             runCatching { social.toggleLike(post.id, uid) }
-                .onSuccess { pendingLikeIds.remove(post.id) }
+                .onSuccess {
+                    // Small delay ensures the next Firestore snapshot has incorporated the change, preventing count jump
+                    delay(800)
+                    pendingLikeIds.remove(post.id)
+                }
                 .onFailure {
                     Log.e("FeedVM", "toggleLike failed for post=${post.id}", it)
                     pendingLikeIds.remove(post.id)
