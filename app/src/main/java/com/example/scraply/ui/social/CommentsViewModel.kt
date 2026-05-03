@@ -20,6 +20,7 @@ data class CommentsUiState(
     val comments: List<FeedComment> = emptyList(),
     val input: String = "",
     val sending: Boolean = false,
+    val isLoading: Boolean = false,
     val error: String? = null,
 )
 
@@ -41,12 +42,17 @@ class CommentsViewModel(
     fun setPostId(postId: String) {
         if (postId.isBlank() || postId == _state.value.postId) return
         commentsJob?.cancel()
-        _state.value = _state.value.copy(postId = postId, comments = emptyList(), error = null)
+        _state.value = _state.value.copy(
+            postId = postId,
+            comments = emptyList(),
+            isLoading = true,
+            error = null,
+        )
         val social = socialRepository ?: return
         commentsJob = social.observeComments(postId)
             .onEach { raw ->
                 val hydrated = runCatching { social.hydrateCommentAuthors(raw) }.getOrDefault(raw)
-                _state.value = _state.value.copy(comments = hydrated)
+                _state.value = _state.value.copy(comments = hydrated, isLoading = false)
             }
             .launchIn(viewModelScope)
     }
@@ -81,4 +87,3 @@ class CommentsViewModel(
         }
     }
 }
-
