@@ -40,7 +40,8 @@ class FeedViewModel(
         feedJob = social.observeFeed(uid)
             .onEach { raw ->
                 val hydrated = runCatching { social.hydratePostAuthors(raw) }.getOrDefault(raw)
-                val ranked = runCatching { social.rankByFollows(uid, hydrated) }.getOrDefault(hydrated)
+                val enriched = runCatching { social.hydratePostEngagement(uid, hydrated) }.getOrDefault(hydrated)
+                val ranked = runCatching { social.rankByFollows(uid, enriched) }.getOrDefault(enriched)
                 _feed.value = _feed.value.copy(feed = ranked)
             }
             .launchIn(viewModelScope)
@@ -54,9 +55,23 @@ class FeedViewModel(
     fun toggleLike(post: FeedPost) {
         val social = socialRepository ?: return
         val uid = authState.value.user?.uid ?: return
+        val optimisticLiked = !post.likedByMe
+        val optimisticCount = (post.likeCount + if (optimisticLiked) 1 else -1).coerceAtLeast(0)
+        _feed.value = _feed.value.copy(
+            feed = _feed.value.feed.map { item ->
+                if (item.id == post.id) item.copy(likedByMe = optimisticLiked, likeCount = optimisticCount) else item
+            }
+        )
         viewModelScope.launch {
             runCatching { social.toggleLike(post.id, uid) }
-                .onFailure { Log.e("FeedVM", "toggleLike failed for post=${post.id}", it) }
+                .onFailure {
+                    Log.e("FeedVM", "toggleLike failed for post=${post.id}", it)
+                    _feed.value = _feed.value.copy(
+                        feed = _feed.value.feed.map { item ->
+                            if (item.id == post.id) item.copy(likedByMe = post.likedByMe, likeCount = post.likeCount) else item
+                        }
+                    )
+                }
         }
     }
 }

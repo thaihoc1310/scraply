@@ -5,6 +5,9 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -180,6 +183,19 @@ class SocialRepository(
                 avatarUrl = u?.getString("avatarUrl"),
             )
         }
+    }
+
+    suspend fun hydratePostEngagement(currentUid: String, posts: List<FeedPost>): List<FeedPost> = coroutineScope {
+        if (posts.isEmpty()) return@coroutineScope posts
+        posts.map { post ->
+            async {
+                val likeRef = postsRef.document(post.id).collection("likes").document(currentUid)
+                val saveRef = postsRef.document(post.id).collection("saves").document(currentUid)
+                val likedByMe = runCatching { likeRef.get().await().exists() }.getOrDefault(false)
+                val savedByMe = runCatching { saveRef.get().await().exists() }.getOrDefault(false)
+                post.copy(likedByMe = likedByMe, savedByMe = savedByMe)
+            }
+        }.awaitAll()
     }
 
     /** Followed-users-first ordering (REQUIREMENTS AC-8.3). */
