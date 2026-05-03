@@ -185,6 +185,45 @@ class SocialRepository(
         }
     }
 
+    suspend fun hydrateCommentAuthors(comments: List<FeedComment>): List<FeedComment> {
+        val uids = comments.mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }.distinct()
+        val userDocs = uids.mapNotNull { uid ->
+            runCatching { usersRef.document(uid).get().await() }.getOrNull()
+        }.associateBy { it.id }
+        return comments.map { comment ->
+            val u = userDocs[comment.userId]
+            comment.copy(
+                username = u?.getString("username") ?: u?.getString("displayName"),
+                avatarUrl = u?.getString("avatarUrl"),
+            )
+        }
+    }
+
+    suspend fun fetchLatestComments(postIds: List<String>, limit: Long = 2): Map<String, List<FeedComment>> = coroutineScope {
+        if (postIds.isEmpty()) return@coroutineScope emptyMap()
+        postIds.distinct().map { postId ->
+            async {
+                val snap = postsRef.document(postId).collection("comments")
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .limit(limit)
+                    .get()
+                    .await()
+                val raw = snap.documents.map { d ->
+                    FeedComment(
+                        id = d.id,
+                        userId = d.getString("userId") ?: "",
+                        username = null,
+                        avatarUrl = null,
+                        text = d.getString("text") ?: "",
+                        createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                    )
+                }
+                val hydrated = runCatching { hydrateCommentAuthors(raw) }.getOrDefault(raw)
+                postId to hydrated.reversed()
+            }
+        }.awaitAll().toMap()
+    }
+
     suspend fun hydratePostEngagement(currentUid: String, posts: List<FeedPost>): List<FeedPost> = coroutineScope {
         if (posts.isEmpty()) return@coroutineScope posts
         posts.map { post ->

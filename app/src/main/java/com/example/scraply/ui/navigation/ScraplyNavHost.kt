@@ -25,6 +25,7 @@ import com.example.scraply.ui.editor.EditorProjectsScreen
 import com.example.scraply.ui.editor.EditorViewModel
 import com.example.scraply.ui.editor.ScrapbookEditorScreen
 import com.example.scraply.ui.notifications.NotificationsScreen
+import com.example.scraply.ui.social.CommentsScreen
 import com.example.scraply.ui.social.FeedScreen
 import com.example.scraply.ui.social.ProfileScreen
 import com.example.scraply.ui.stamp.StampCameraScreen
@@ -191,6 +192,17 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
 
             composable(Routes.FEED) {
                 FeedScreen()
+            }
+
+            composable(
+                Routes.COMMENTS,
+                arguments = listOf(navArgument("postId") { type = NavType.StringType }),
+            ) { backStackEntry ->
+                val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                CommentsScreen(
+                    postId = postId,
+                    onBack = { navController.popBackStack() },
+                )
             }
 
             composable(Routes.PROFILE) {
