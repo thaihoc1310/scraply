@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -54,6 +56,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -166,40 +170,6 @@ fun ScrapbookEditorScreen(
                         onBack()
                     },
                 )
-                Spacer(Modifier.width(8.dp))
-                CircleIconButton(
-                    icon = Icons.Filled.IosShare,
-                    contentDescription = "Export",
-                    onClick = {
-                        scope.launch {
-                            val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                            val uri = vm.shareBitmap(bmp)
-                            if (uri != null) {
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "image/png"
-                                    putExtra(Intent.EXTRA_STREAM, uri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                }
-                                context.startActivity(Intent.createChooser(intent, "Share Scrapbook"))
-                            } else {
-                                Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                )
-                if (vm.canPublish) {
-                    Spacer(Modifier.width(8.dp))
-                    CircleIconButton(
-                        icon = Icons.Filled.Public,
-                        contentDescription = "Publish to feed",
-                        onClick = {
-                            scope.launch {
-                                val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                                showPublishPreview = bmp
-                            }
-                        },
-                    )
-                }
                 Spacer(Modifier.weight(1f))
                 Text(
                     current?.name?.let { if (it.length > 14) it.take(12) + "…" else it } ?: "",
@@ -214,20 +184,75 @@ fun ScrapbookEditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircleIconButton(
-                        icon = Icons.Filled.PhotoLibrary,
-                        contentDescription = "Add stamp",
-                        onClick = { showStampPicker = PickerMode.AddStamp },
-                    )
-                    CircleIconButton(
                         icon = Icons.Filled.Tune,
                         contentDescription = "Edit assets",
                         onClick = { showAssets = true },
                     )
-                    CircleIconButton(
-                        icon = Icons.Filled.Palette,
-                        contentDescription = "Palette",
-                        onClick = { showPalette = true },
-                    )
+                    
+                    val isTextSelected = canvas.elements.find { it.id == selectedId }?.type == CanvasElementType.TEXT
+                    if (isTextSelected) {
+                        CircleIconButton(
+                            icon = Icons.Filled.Palette,
+                            contentDescription = "Palette",
+                            onClick = { showPalette = true },
+                        )
+                    }
+
+                    Box {
+                        var topMenuOpen by remember { mutableStateOf(false) }
+                        CircleIconButton(
+                            icon = Icons.Filled.MoreHoriz,
+                            contentDescription = "More options",
+                            onClick = { topMenuOpen = true }
+                        )
+                        DropdownMenu(
+                            expanded = topMenuOpen,
+                            onDismissRequest = { topMenuOpen = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Add stamp") },
+                                leadingIcon = { Icon(Icons.Filled.PhotoLibrary, null) },
+                                onClick = { 
+                                    topMenuOpen = false
+                                    showStampPicker = PickerMode.AddStamp 
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Share") },
+                                leadingIcon = { Icon(Icons.Filled.IosShare, null) },
+                                onClick = { 
+                                    topMenuOpen = false
+                                    scope.launch {
+                                        val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                        val uri = vm.shareBitmap(bmp)
+                                        if (uri != null) {
+                                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "image/png"
+                                                putExtra(Intent.EXTRA_STREAM, uri)
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(Intent.createChooser(intent, "Share Scrapbook"))
+                                        } else {
+                                            Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            )
+                            if (vm.canPublish) {
+                                DropdownMenuItem(
+                                    text = { Text("Publish to feed") },
+                                    leadingIcon = { Icon(Icons.Filled.Public, null) },
+                                    onClick = { 
+                                        topMenuOpen = false
+                                        scope.launch {
+                                            val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                            showPublishPreview = bmp
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -375,7 +400,9 @@ fun ScrapbookEditorScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .imePadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
