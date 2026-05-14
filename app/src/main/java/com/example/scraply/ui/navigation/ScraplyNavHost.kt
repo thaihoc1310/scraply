@@ -97,6 +97,7 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 val uri = backStackEntry.arguments?.getString("stampUri").orEmpty()
                 StampDetailsScreen(
                     stampUriEncoded = uri,
+                    onBack = { navController.popBackStack() },
                     onRetake = { navController.popBackStack(Routes.STAMP, inclusive = false) },
                     onSaved = { navController.popBackStack(Routes.STAMP, inclusive = false) },
                 )

@@ -168,8 +168,7 @@ fun UploadStampScreen(
                     )
                 }
                 StampFrameOverlay(
-                    modifier = Modifier.fillMaxWidth(0.88f),
-                    dimOutside = false,
+                    modifier = Modifier.fillMaxWidth(0.88f)
                 )
             }
         }
