@@ -9,6 +9,7 @@ import com.example.scraply.data.repository.StampRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 data class CollectionCard(
@@ -30,36 +31,34 @@ class CollectionsViewModel(
 
     init {
         viewModelScope.launch {
-            collectionRepository.observeAll().collect { list ->
-                refreshCards(list)
-            }
-        }
-        viewModelScope.launch {
-            stampRepository.observeAll().collect { stamps ->
+            combine(
+                collectionRepository.observeAll(),
+                stampRepository.observeAll(),
+                collectionRepository.observeStampLinks(),
+            ) { collections, stamps, links ->
                 _allStamps.value = stamps
-                refreshCards(null)
+                lastCollections = collections
+
+                collections.map { collection ->
+                    val stampIds = links
+                        .asSequence()
+                        .filter { it.collectionId == collection.id }
+                        .map { it.stampId }
+                        .toSet()
+                    val filtered = stamps.filter { it.id in stampIds }
+                    CollectionCard(
+                        collection = collection,
+                        stampCount = filtered.size,
+                        thumbUris = filtered.take(4).map { it.imageUri },
+                    )
+                }
+            }.collect { cards ->
+                _cards.value = cards
             }
         }
     }
 
     private var lastCollections: List<StampCollection> = emptyList()
-
-    private suspend fun refreshCards(incoming: List<StampCollection>?) {
-        val cols = incoming ?: lastCollections
-        if (incoming != null) lastCollections = incoming
-
-        val stamps = _allStamps.value
-        val cards = cols.map { col ->
-            val ids = collectionRepository.stampIdsIn(col.id).toSet()
-            val filtered = stamps.filter { it.id in ids }
-            CollectionCard(
-                collection = col,
-                stampCount = filtered.size,
-                thumbUris = filtered.take(4).map { it.imageUri },
-            )
-        }
-        _cards.value = cards
-    }
 
     fun stampsIn(collectionId: String) = collectionRepository.observeStampsIn(collectionId)
     fun getStamp(id: String) = viewModelScope.launch { }

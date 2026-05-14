@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -202,6 +203,10 @@ private fun <T> OptionSection(
     ) {
         options.forEach { option ->
             val isSelected = option == selected
+            val isDark = isSystemInDarkTheme()
+            val selectedContainer = if (isDark) Color(0xFF242424) else Color(0xFFD6D6D6)
+            val unselectedContainer = if (isDark) Color(0xFF343434) else Color(0xFFF1F1F1)
+            val selectedBorder = if (isDark) Color(0xFF5A5A5A) else Color(0xFFB8B8B8)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -209,15 +214,15 @@ private fun <T> OptionSection(
                     .clip(RoundedCornerShape(14.dp))
                     .background(
                         if (isSelected) {
-                            MaterialTheme.colorScheme.primaryContainer
+                            selectedContainer
                         } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                            unselectedContainer
                         },
                     )
                     .border(
                         width = 1.dp,
                         color = if (isSelected) {
-                            MaterialTheme.colorScheme.primary
+                            selectedBorder
                         } else {
                             Color.Transparent
                         },
@@ -231,7 +236,7 @@ private fun <T> OptionSection(
                     text = label(option),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
+                        MaterialTheme.colorScheme.onSurface
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },

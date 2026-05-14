@@ -2,13 +2,19 @@ package com.example.scraply.ui.stamp
 
 import android.Manifest
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.media.MediaPlayer
 import android.net.Uri
+import android.util.Size
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.UseCaseGroup
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
@@ -158,8 +164,18 @@ private fun CameraContent(
     var hasFlash by remember { mutableStateOf(false) }
     var hasFlashHardware by remember { mutableStateOf(false) }
     val imageCapture = remember {
+        val resolutionSelector = ResolutionSelector.Builder()
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+            .setResolutionStrategy(
+                ResolutionStrategy(
+                    Size(1920, 1440),
+                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_LOWER_THEN_HIGHER,
+                ),
+            )
+            .build()
         ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setResolutionSelector(resolutionSelector)
             .build()
     }
     var camera by remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
@@ -516,30 +532,35 @@ private fun CameraContent(
                             }
                         }
 
-                        // Capture image
-                        val file = File(context.cacheDir, "capture_${System.currentTimeMillis()}.jpg")
-                        val output = ImageCapture.OutputFileOptions.Builder(file).build()
-
                         imageCapture.takePicture(
-                            output,
                             executor,
-                            object : ImageCapture.OnImageSavedCallback {
-                                override fun onImageSaved(result: ImageCapture.OutputFileResults) {
+                            object : ImageCapture.OnImageCapturedCallback() {
+                                override fun onCaptureSuccess(image: ImageProxy) {
                                     scope.launch {
-                                        // Load and process bitmap
-                                        val bitmap = withContext(Dispatchers.IO) {
-                                            val src = StampBitmapProcessor.loadBitmapWithExifRotation(file.absolutePath)
-                                            if (src != null && previewSize.width > 0) {
-                                                StampBitmapProcessor.cut(
-                                                    context = context,
-                                                    source = src,
-                                                    previewSize = previewSize,
-                                                    cutterScale = 1f,
-                                                )
-                                            } else null
-                                        }
+                                        try {
+                                            val bitmap = withContext(Dispatchers.IO) {
+                                                try {
+                                                    val cropRect = Rect(image.cropRect)
+                                                    val raw = image.toBitmap()
+                                                    val viewportCropped = StampBitmapProcessor.cropToRect(
+                                                        source = raw,
+                                                        cropRect = cropRect,
+                                                    )
+                                                    val upright = StampBitmapProcessor.rotateToUpright(
+                                                        source = viewportCropped,
+                                                        degrees = image.imageInfo.rotationDegrees,
+                                                    )
+                                                    StampBitmapProcessor.cut(
+                                                        context = context,
+                                                        source = upright,
+                                                        previewSize = previewSize,
+                                                        cutterScale = 1f,
+                                                    )
+                                                } finally {
+                                                    image.close()
+                                                }
+                                            }
 
-                                        if (bitmap != null) {
                                             val savedUri = withContext(Dispatchers.IO) {
                                                 val outFile = File(context.filesDir, "stamps/${System.currentTimeMillis()}.png")
                                                 outFile.parentFile?.mkdirs()
@@ -553,7 +574,7 @@ private fun CameraContent(
                                             onCaptured(savedUri)
                                             frozenPreviewBitmap = null
                                             isCapturing = false
-                                        } else {
+                                        } catch (_: Exception) {
                                             animationJob.cancel()
                                             isCutting = false
                                             showBlackHole = false

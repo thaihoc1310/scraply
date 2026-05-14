@@ -48,7 +48,8 @@ import com.example.scraply.ui.collection.TextDialog
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.PillBadge
 import com.example.scraply.ui.common.ScraplyCard
-import com.example.scraply.util.PostageStampShape
+
+private const val StampAspectRatio = 147f / 190f
 
 @Composable
 fun EditorProjectsScreen(
@@ -228,11 +229,10 @@ private fun ProjectCardView(
                                 AsyncImage(
                                     model = stamp.imageUri,
                                     contentDescription = null,
-                                    contentScale = ContentScale.Crop,
+                                    contentScale = ContentScale.Fit,
                                     modifier = Modifier
                                         .height(100.dp)
-                                        .aspectRatio(0.75f)
-                                        .clip(PostageStampShape)
+                                        .aspectRatio(StampAspectRatio)
                                 )
                             }
                         }

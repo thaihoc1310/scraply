@@ -3,6 +3,7 @@ package com.example.scraply.ui.editor
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,7 +37,8 @@ import com.example.scraply.R
 import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
-import com.example.scraply.util.PostageStampShape
+
+private const val StampAspectRatio = 147f / 190f
 
 val BackgroundOptions = listOf(
     "bg_chalkboard" to "Chalkboard",
@@ -199,16 +201,15 @@ fun CanvasElementView(
             val stamp = stamps.firstOrNull { it.id == element.stampId }
             Box(
                 modifier = modifier
-                    .size(width = 160.dp, height = 190.dp)
-                    .clip(PostageStampShape)
-                    .background(Color.White),
+                    .width(160.dp)
+                    .aspectRatio(StampAspectRatio),
                 contentAlignment = Alignment.Center,
             ) {
                 if (stamp != null) {
                     AsyncImage(
                         model = stamp.imageUri,
                         contentDescription = stamp.title,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -234,7 +235,7 @@ fun CanvasElementView(
                         AsyncImage(
                             model = stamp.imageUri,
                             contentDescription = stamp.title,
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

@@ -7,6 +7,7 @@ import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PorterDuff
+import android.graphics.Rect
 import android.media.ExifInterface
 import androidx.compose.ui.unit.IntSize
 import com.example.scraply.R
@@ -155,15 +156,35 @@ object StampBitmapProcessor {
         return cutRaw(context, source, previewSize.width, previewSize.height, cutterScale)
     }
 
+    fun rotateToUpright(source: Bitmap, degrees: Int): Bitmap {
+        val normalized = ((degrees % 360) + 360) % 360
+        return rotateBitmap(source, normalized.toFloat())
+    }
+
+    fun cropToRect(source: Bitmap, cropRect: Rect): Bitmap {
+        val left = cropRect.left.coerceIn(0, source.width - 1)
+        val top = cropRect.top.coerceIn(0, source.height - 1)
+        val right = cropRect.right.coerceIn(left + 1, source.width)
+        val bottom = cropRect.bottom.coerceIn(top + 1, source.height)
+
+        if (left == 0 && top == 0 && right == source.width && bottom == source.height) {
+            return source
+        }
+
+        val cropped = Bitmap.createBitmap(source, left, top, right - left, bottom - top)
+        source.recycle()
+        return cropped
+    }
+
     /**
      * Load bitmap with EXIF rotation handling.
      */
-    fun loadBitmapWithExifRotation(filePath: String): Bitmap? {
+    fun loadBitmapWithExifRotation(filePath: String, maxDim: Int = 1920): Bitmap? {
         val options = BitmapFactory.Options().apply { inMutable = false }
         options.inJustDecodeBounds = true
         BitmapFactory.decodeFile(filePath, options)
         options.inJustDecodeBounds = false
-        options.inSampleSize = 1
+        options.inSampleSize = calculateInSampleSize(options.outWidth, options.outHeight, maxDim)
 
         val bitmap = BitmapFactory.decodeFile(filePath, options) ?: return null
 
@@ -182,5 +203,16 @@ object StampBitmapProcessor {
         val rotated = Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
         if (rotated !== source) source.recycle()
         return rotated
+    }
+
+    private fun calculateInSampleSize(width: Int, height: Int, maxDim: Int): Int {
+        if (width <= 0 || height <= 0 || maxDim <= 0) return 1
+
+        var sample = 1
+        val longer = maxOf(width, height)
+        while (longer / (sample * 2) >= maxDim) {
+            sample *= 2
+        }
+        return sample
     }
 }

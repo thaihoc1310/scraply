@@ -64,6 +64,9 @@ interface CollectionStampDao {
     @Query("SELECT * FROM collection_stamps WHERE collectionId = :collectionId")
     fun observeByCollection(collectionId: String): Flow<List<CollectionStampEntity>>
 
+    @Query("SELECT * FROM collection_stamps")
+    fun observeAll(): Flow<List<CollectionStampEntity>>
+
     @Query("SELECT stampId FROM collection_stamps WHERE collectionId = :collectionId")
     suspend fun stampIdsIn(collectionId: String): List<String>
 

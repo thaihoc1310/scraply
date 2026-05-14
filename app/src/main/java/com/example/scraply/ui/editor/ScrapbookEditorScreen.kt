@@ -100,7 +100,6 @@ import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
-import com.example.scraply.util.PostageStampShape
 import kotlinx.coroutines.launch
 import android.widget.Toast
 
@@ -1010,15 +1009,13 @@ private fun StampPickerDialog(
                         val isUsed = usedStampIds.contains(s.id)
                         Box(
                             modifier = Modifier
-                                .aspectRatio(0.8f)
-                                .clip(PostageStampShape)
-                                .background(Color.White)
+                                .aspectRatio(147f / 190f)
                                 .clickable(enabled = !isUsed) { onPick(s) },
                         ) {
                             AsyncImage(
                                 model = s.imageUri,
                                 contentDescription = s.title,
-                                contentScale = ContentScale.Crop,
+                                contentScale = ContentScale.Fit,
                                 modifier = Modifier.fillMaxSize().let {
                                     if (isUsed) it.alpha(0.5f) else it
                                 },
