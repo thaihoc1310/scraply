@@ -26,6 +26,7 @@ import com.example.scraply.ui.editor.EditorViewModel
 import com.example.scraply.ui.editor.ScrapbookEditorScreen
 import com.example.scraply.ui.notifications.NotificationsScreen
 import com.example.scraply.ui.social.CommentsScreen
+import com.example.scraply.ui.social.FeedPostScreen
 import com.example.scraply.ui.social.FeedScreen
 import com.example.scraply.ui.social.ProfileScreen
 import com.example.scraply.ui.stamp.StampCameraScreen
@@ -196,6 +197,22 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             }
 
             composable(
+                Routes.FEED_POST,
+                arguments = listOf(
+                    navArgument("postId") { type = NavType.StringType },
+                    navArgument("showComments") { type = NavType.BoolType; defaultValue = false },
+                ),
+            ) { backStackEntry ->
+                val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                val showComments = backStackEntry.arguments?.getBoolean("showComments") ?: false
+                FeedPostScreen(
+                    postId = postId,
+                    showComments = showComments,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(
                 Routes.COMMENTS,
                 arguments = listOf(navArgument("postId") { type = NavType.StringType }),
             ) { backStackEntry ->
@@ -213,7 +230,12 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             }
 
             composable(Routes.NOTIFICATIONS) {
-                NotificationsScreen(onBack = { navController.popBackStack() })
+                NotificationsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPost = { id, showComments ->
+                        navController.navigate(Routes.feedPost(id, showComments))
+                    },
+                )
             }
         }
     }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
@@ -99,6 +100,87 @@ fun FeedScreen() {
         ModalBottomSheet(
             sheetState = sheetState,
             onDismissRequest = { activePost = null },
+        ) {
+            CommentsPanel(
+                postId = post.id,
+                onBack = null,
+                showTopBar = false,
+                header = null,
+                modifier = Modifier.fillMaxHeight(0.6f),
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FeedPostScreen(
+    postId: String,
+    showComments: Boolean,
+    onBack: () -> Unit,
+) {
+    val vm: FeedViewModel = scraplyViewModel()
+    val feedState by vm.feed.collectAsState()
+    val post = feedState.feed.firstOrNull { it.id == postId }
+    var isCommentsVisible by remember { mutableStateOf(showComments) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+    ) {
+        Spacer(Modifier.height(40.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+            }
+            Text("Post", style = MaterialTheme.typography.titleLarge)
+        }
+
+        AuthGate(
+            vm = vm,
+            signedOutHeadline = "Welcome back",
+            signedOutSubtext = "Sign in to explore scrapbooks from the community.",
+        ) {
+            when {
+                feedState.isLoading && feedState.feed.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                post == null -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Post not found.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        item(post.id) {
+                            FeedCard(
+                                post,
+                                onLike = { vm.toggleLike(post) },
+                                onOpenComments = { isCommentsVisible = true },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (isCommentsVisible && post != null) {
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { isCommentsVisible = false },
         ) {
             CommentsPanel(
                 postId = post.id,
