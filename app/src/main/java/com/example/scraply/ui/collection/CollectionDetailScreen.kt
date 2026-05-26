@@ -31,11 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
+import com.example.scraply.ui.common.StampImage
 
 private const val StampAspectRatio = 147f / 190f
 
@@ -145,10 +144,9 @@ private fun StampGridItem(stamp: Stamp, onOpen: () -> Unit) {
                 .aspectRatio(StampAspectRatio),
             contentAlignment = Alignment.Center,
         ) {
-            AsyncImage(
-                model = stamp.imageUri,
+            StampImage(
+                imageUri = stamp.imageUri,
                 contentDescription = stamp.title,
-                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -186,10 +184,9 @@ private fun AddStampsDialog(
                                 .aspectRatio(StampAspectRatio)
                                 .clickable { onPick(stamp.id) },
                         ) {
-                            AsyncImage(
-                                model = stamp.imageUri,
+                            StampImage(
+                                imageUri = stamp.imageUri,
                                 contentDescription = stamp.title,
-                                contentScale = ContentScale.Fit,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }

@@ -37,6 +37,7 @@ import com.example.scraply.R
 import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
+import com.example.scraply.ui.common.StampImage
 
 private const val StampAspectRatio = 147f / 190f
 
@@ -206,10 +207,9 @@ fun CanvasElementView(
                 contentAlignment = Alignment.Center,
             ) {
                 if (stamp != null) {
-                    AsyncImage(
-                        model = stamp.imageUri,
+                    StampImage(
+                        imageUri = stamp.imageUri,
                         contentDescription = stamp.title,
-                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -232,10 +232,9 @@ fun CanvasElementView(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (stamp != null) {
-                        AsyncImage(
-                            model = stamp.imageUri,
+                        StampImage(
+                            imageUri = stamp.imageUri,
                             contentDescription = stamp.title,
-                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }

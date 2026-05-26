@@ -33,13 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
-import coil.compose.AsyncImage
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
-import com.example.scraply.util.PostageStampShape
+import com.example.scraply.ui.common.StampImage
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
@@ -282,13 +280,11 @@ private fun DateCell(
                 Box(
                     modifier = Modifier
                         .size(width = if (compact) 22.dp else 30.dp, height = if (compact) 26.dp else 36.dp)
-                        .clip(PostageStampShape)
-                        .background(Color.White),
+                        .padding(1.dp),
                 ) {
-                    AsyncImage(
-                        model = stamps.first().imageUri,
+                    StampImage(
+                        imageUri = stamps.first().imageUri,
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -368,14 +364,11 @@ fun CalendarDateDetailScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .aspectRatio(0.8f)
-                                .clip(PostageStampShape)
-                                .background(Color.White),
+                                .aspectRatio(147f / 190f),
                         ) {
-                            AsyncImage(
-                                model = s.imageUri,
+                            StampImage(
+                                imageUri = s.imageUri,
                                 contentDescription = s.title,
-                                contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }

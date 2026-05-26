@@ -12,6 +12,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.util.UUID
 
 class CollectionRepository(
@@ -30,9 +32,17 @@ class CollectionRepository(
     fun observeStampLinks(): Flow<List<CollectionStampEntity>> =
         collectionStampDao.observeAll()
 
-    suspend fun ensureDefaultCollection(): StampCollection {
-        val existing = collectionDao.getDefault()
-        if (existing != null) return existing.toDomain()
+    suspend fun ensureDefaultCollection(): StampCollection = defaultCollectionMutex.withLock {
+        val defaults = collectionDao.getDefaults()
+        if (defaults.isNotEmpty()) {
+            val canonical = defaults.first()
+            val duplicates = defaults.drop(1)
+            if (duplicates.isNotEmpty()) {
+                mergeDuplicateDefaults(canonical, duplicates)
+            }
+            return@withLock canonical.toDomain()
+        }
+
         val uid = currentUid()
         val entity = CollectionEntity(
             id = UUID.randomUUID().toString(),
@@ -43,7 +53,7 @@ class CollectionRepository(
         )
         collectionDao.upsert(entity)
         pushAsync(entity)
-        return entity.toDomain()
+        entity.toDomain()
     }
 
     suspend fun create(name: String): StampCollection {
@@ -98,5 +108,34 @@ class CollectionRepository(
             val ids = collectionStampDao.stampIdsIn(entity.id)
             s.pushCollection(uid, entity.copy(userId = uid), ids)
         }
+    }
+
+    private suspend fun mergeDuplicateDefaults(
+        canonical: CollectionEntity,
+        duplicates: List<CollectionEntity>,
+    ) {
+        duplicates.forEach { duplicate ->
+            collectionStampDao.stampIdsIn(duplicate.id).forEach { stampId ->
+                collectionStampDao.insert(CollectionStampEntity(canonical.id, stampId))
+            }
+            collectionStampDao.removeAllInCollection(duplicate.id)
+        }
+
+        val duplicateIds = duplicates.map { it.id }
+        collectionDao.deleteByIds(duplicateIds)
+
+        val uid = currentUid()
+        val s = sync
+        if (uid != null && s != null) {
+            appScope?.launch {
+                duplicateIds.forEach { s.deleteCollection(uid, it) }
+                val ids = collectionStampDao.stampIdsIn(canonical.id)
+                s.pushCollection(uid, canonical.copy(userId = uid), ids)
+            }
+        }
+    }
+
+    companion object {
+        private val defaultCollectionMutex = Mutex()
     }
 }

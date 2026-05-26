@@ -43,6 +43,7 @@ class StampCaptureViewModel(
     ): String? = withContext(Dispatchers.IO) {
         val src = ImageUtils.loadBitmap(appContext, sourceUri) ?: return@withContext null
         val stamped = ImageUtils.renderPostageStamp(
+            context = appContext,
             source = src,
             translateX = translateX,
             translateY = translateY,

@@ -38,16 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import com.example.scraply.ui.collection.TextDialog
 import com.example.scraply.ui.common.CircleIconButton
-import com.example.scraply.ui.common.PillBadge
 import com.example.scraply.ui.common.ScraplyCard
+import com.example.scraply.ui.common.StampImage
 
 private const val StampAspectRatio = 147f / 190f
 
@@ -226,10 +224,9 @@ private fun ProjectCardView(
                         stampsInProject.forEach { el ->
                             val stamp = stamps.find { it.id == el.stampId }
                             if (stamp != null) {
-                                AsyncImage(
-                                    model = stamp.imageUri,
+                                StampImage(
+                                    imageUri = stamp.imageUri,
                                     contentDescription = null,
-                                    contentScale = ContentScale.Fit,
                                     modifier = Modifier
                                         .height(100.dp)
                                         .aspectRatio(StampAspectRatio)
