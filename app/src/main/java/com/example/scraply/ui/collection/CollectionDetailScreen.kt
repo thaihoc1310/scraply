@@ -31,14 +31,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
-import com.example.scraply.util.PostageStampShape
+
+private const val StampAspectRatio = 147f / 190f
 
 @Composable
 fun CollectionDetailScreen(
@@ -143,15 +142,13 @@ private fun StampGridItem(stamp: Stamp, onOpen: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(0.8f)
-                .clip(PostageStampShape)
-                .background(Color.White),
+                .aspectRatio(StampAspectRatio),
             contentAlignment = Alignment.Center,
         ) {
             AsyncImage(
                 model = stamp.imageUri,
                 contentDescription = stamp.title,
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -186,15 +183,13 @@ private fun AddStampsDialog(
                     items(candidates, key = { it.id }) { stamp ->
                         Box(
                             modifier = Modifier
-                                .aspectRatio(0.8f)
-                                .clip(PostageStampShape)
-                                .background(Color.White)
+                                .aspectRatio(StampAspectRatio)
                                 .clickable { onPick(stamp.id) },
                         ) {
                             AsyncImage(
                                 model = stamp.imageUri,
                                 contentDescription = stamp.title,
-                                contentScale = ContentScale.Crop,
+                                contentScale = ContentScale.Fit,
                                 modifier = Modifier.fillMaxSize(),
                             )
                         }

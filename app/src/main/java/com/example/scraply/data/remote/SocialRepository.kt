@@ -5,6 +5,9 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.firestore
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -21,6 +24,8 @@ data class FeedPost(
     val likeCount: Long,
     val commentCount: Long,
     val createdAt: Long,
+    val title: String? = null,
+    val description: String? = null,
     val likedByMe: Boolean = false,
     val savedByMe: Boolean = false,
 )
@@ -77,11 +82,13 @@ class SocialRepository(
         projectId: String,
         localImagePath: String,
         canvasJson: String,
+        title: String? = null,
+        description: String? = null,
     ): String {
         val docRef = postsRef.document()
         val postId = docRef.id
         val imageUrl = storage.uploadPostImage(uid, postId, localImagePath)
-        val data = mapOf(
+        val data = mutableMapOf<String, Any?>(
             "id" to postId,
             "projectId" to projectId,
             "imageUrl" to imageUrl,
@@ -91,6 +98,8 @@ class SocialRepository(
             "commentCount" to 0L,
             "createdAt" to FieldValue.serverTimestamp(),
         )
+        if (!title.isNullOrBlank()) data["title"] = title.take(1000)
+        if (!description.isNullOrBlank()) data["description"] = description.take(1000)
         docRef.set(data).await()
         return postId
     }
@@ -118,6 +127,8 @@ class SocialRepository(
                         likeCount = d.getLong("likeCount") ?: 0,
                         commentCount = d.getLong("commentCount") ?: 0,
                         createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                        title = d.getString("title"),
+                        description = d.getString("description"),
                     )
                 }
             )
@@ -151,6 +162,8 @@ class SocialRepository(
                     likeCount = d.getLong("likeCount") ?: 0,
                     commentCount = d.getLong("commentCount") ?: 0,
                     createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                    title = d.getString("title"),
+                    description = d.getString("description"),
                 )
             }
             trySend(posts)
@@ -170,6 +183,58 @@ class SocialRepository(
                 avatarUrl = u?.getString("avatarUrl"),
             )
         }
+    }
+
+    suspend fun hydrateCommentAuthors(comments: List<FeedComment>): List<FeedComment> {
+        val uids = comments.mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }.distinct()
+        val userDocs = uids.mapNotNull { uid ->
+            runCatching { usersRef.document(uid).get().await() }.getOrNull()
+        }.associateBy { it.id }
+        return comments.map { comment ->
+            val u = userDocs[comment.userId]
+            comment.copy(
+                username = u?.getString("username") ?: u?.getString("displayName"),
+                avatarUrl = u?.getString("avatarUrl"),
+            )
+        }
+    }
+
+    suspend fun fetchLatestComments(postIds: List<String>, limit: Long = 2): Map<String, List<FeedComment>> = coroutineScope {
+        if (postIds.isEmpty()) return@coroutineScope emptyMap()
+        postIds.distinct().map { postId ->
+            async {
+                val snap = postsRef.document(postId).collection("comments")
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .limit(limit)
+                    .get()
+                    .await()
+                val raw = snap.documents.map { d ->
+                    FeedComment(
+                        id = d.id,
+                        userId = d.getString("userId") ?: "",
+                        username = null,
+                        avatarUrl = null,
+                        text = d.getString("text") ?: "",
+                        createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                    )
+                }
+                val hydrated = runCatching { hydrateCommentAuthors(raw) }.getOrDefault(raw)
+                postId to hydrated.reversed()
+            }
+        }.awaitAll().toMap()
+    }
+
+    suspend fun hydratePostEngagement(currentUid: String, posts: List<FeedPost>): List<FeedPost> = coroutineScope {
+        if (posts.isEmpty()) return@coroutineScope posts
+        posts.map { post ->
+            async {
+                val likeRef = postsRef.document(post.id).collection("likes").document(currentUid)
+                val saveRef = postsRef.document(post.id).collection("saves").document(currentUid)
+                val likedByMe = runCatching { likeRef.get().await().exists() }.getOrDefault(false)
+                val savedByMe = runCatching { saveRef.get().await().exists() }.getOrDefault(false)
+                post.copy(likedByMe = likedByMe, savedByMe = savedByMe)
+            }
+        }.awaitAll()
     }
 
     /** Followed-users-first ordering (REQUIREMENTS AC-8.3). */

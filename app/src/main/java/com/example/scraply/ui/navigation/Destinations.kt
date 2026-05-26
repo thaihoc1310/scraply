@@ -8,6 +8,8 @@ object Routes {
     const val FEED = "feed"
     const val PROFILE = "profile"
     const val NOTIFICATIONS = "notifications"
+    const val COMMENTS = "feed/comments/{postId}"
+    const val FEED_POST = "feed/post/{postId}?showComments={showComments}"
 
     const val STAMP_CAMERA = "stamp/camera"
     const val STAMP_CROP = "stamp/crop/{sourceUri}"
@@ -24,6 +26,9 @@ object Routes {
     fun stampDetail(id: String) = "stamps/$id"
     fun projectEditor(id: String) = "editor/project/$id"
     fun calendarDate(epochDay: Long) = "calendar/date/$epochDay"
+    fun comments(postId: String) = "feed/comments/${android.net.Uri.encode(postId)}"
+    fun feedPost(postId: String, showComments: Boolean = false) =
+        "feed/post/${android.net.Uri.encode(postId)}?showComments=$showComments"
 }
 
 enum class BottomTab(val route: String, val label: String) {

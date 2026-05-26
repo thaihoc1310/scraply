@@ -1,23 +1,33 @@
 package com.example.scraply.ui.editor
 
+import android.content.Intent
 import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -29,19 +39,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +68,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,9 +77,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
@@ -81,7 +100,6 @@ import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
-import com.example.scraply.util.PostageStampShape
 import kotlinx.coroutines.launch
 import android.widget.Toast
 
@@ -125,6 +143,7 @@ fun ScrapbookEditorScreen(
     var showPalette by remember { mutableStateOf(false) }
     var showStampPicker by remember { mutableStateOf<PickerMode?>(null) }
     var editingText by remember { mutableStateOf<String?>(null) }
+    var showPublishPreview by remember { mutableStateOf<Bitmap?>(null) }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val graphicsLayer = rememberGraphicsLayer()
@@ -150,35 +169,6 @@ fun ScrapbookEditorScreen(
                         onBack()
                     },
                 )
-                Spacer(Modifier.width(8.dp))
-                CircleIconButton(
-                    icon = Icons.Filled.IosShare,
-                    contentDescription = "Export",
-                    onClick = {
-                        scope.launch {
-                            val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                            val ok = vm.exportToGallery(bmp)
-                            Toast.makeText(
-                                context,
-                                if (ok) "Saved to gallery" else "Export failed",
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
-                    },
-                )
-                if (vm.canPublish) {
-                    Spacer(Modifier.width(8.dp))
-                    CircleIconButton(
-                        icon = Icons.Filled.Public,
-                        contentDescription = "Publish to feed",
-                        onClick = {
-                            scope.launch {
-                                val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-                                vm.publishToFeed(bmp)
-                            }
-                        },
-                    )
-                }
                 Spacer(Modifier.weight(1f))
                 Text(
                     current?.name?.let { if (it.length > 14) it.take(12) + "…" else it } ?: "",
@@ -193,20 +183,75 @@ fun ScrapbookEditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircleIconButton(
-                        icon = Icons.Filled.PhotoLibrary,
-                        contentDescription = "Add stamp",
-                        onClick = { showStampPicker = PickerMode.AddStamp },
-                    )
-                    CircleIconButton(
                         icon = Icons.Filled.Tune,
                         contentDescription = "Edit assets",
                         onClick = { showAssets = true },
                     )
-                    CircleIconButton(
-                        icon = Icons.Filled.Palette,
-                        contentDescription = "Palette",
-                        onClick = { showPalette = true },
-                    )
+                    
+                    val isTextSelected = canvas.elements.find { it.id == selectedId }?.type == CanvasElementType.TEXT
+                    if (isTextSelected) {
+                        CircleIconButton(
+                            icon = Icons.Filled.Palette,
+                            contentDescription = "Palette",
+                            onClick = { showPalette = true },
+                        )
+                    }
+
+                    Box {
+                        var topMenuOpen by remember { mutableStateOf(false) }
+                        CircleIconButton(
+                            icon = Icons.Filled.MoreHoriz,
+                            contentDescription = "More options",
+                            onClick = { topMenuOpen = true }
+                        )
+                        DropdownMenu(
+                            expanded = topMenuOpen,
+                            onDismissRequest = { topMenuOpen = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Add stamp") },
+                                leadingIcon = { Icon(Icons.Filled.PhotoLibrary, null) },
+                                onClick = { 
+                                    topMenuOpen = false
+                                    showStampPicker = PickerMode.AddStamp 
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Share") },
+                                leadingIcon = { Icon(Icons.Filled.IosShare, null) },
+                                onClick = { 
+                                    topMenuOpen = false
+                                    scope.launch {
+                                        val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                        val uri = vm.shareBitmap(bmp)
+                                        if (uri != null) {
+                                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                                type = "image/png"
+                                                putExtra(Intent.EXTRA_STREAM, uri)
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(Intent.createChooser(intent, "Share Scrapbook"))
+                                        } else {
+                                            Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            )
+                            if (vm.canPublish) {
+                                DropdownMenuItem(
+                                    text = { Text("Publish to feed") },
+                                    leadingIcon = { Icon(Icons.Filled.Public, null) },
+                                    onClick = { 
+                                        topMenuOpen = false
+                                        scope.launch {
+                                            val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                            showPublishPreview = bmp
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -223,7 +268,13 @@ fun ScrapbookEditorScreen(
                         drawLayer(graphicsLayer)
                     }
                     .pointerInput(Unit) {
-                        detectTapGestures(onTap = { vm.selectElement(null) })
+                        detectTapGestures(onTap = { 
+                            vm.selectElement(null)
+                            if (editingText != null) {
+                                vm.onTransformEnd()
+                            }
+                            editingText = null
+                        })
                     },
             ) {
                 BackgroundSurface(backgroundType = background, modifier = Modifier.fillMaxSize())
@@ -234,9 +285,20 @@ fun ScrapbookEditorScreen(
                         stamps = stamps,
                         selected = element.id == selectedId,
                         canvasSize = canvasSize,
-                        onSelect = { vm.selectElement(element.id) },
+                        isEditing = element.id == editingText,
+                        onSelect = { 
+                            vm.selectElement(element.id)
+                            if (editingText != null && editingText != element.id) {
+                                vm.onTransformEnd()
+                                editingText = null
+                            }
+                        },
                         onUpdate = { updated -> vm.updateElement(element.id) { updated } },
-                        onCommit = { vm.commitTransform() },
+                        onTransformStart = { vm.onTransformStart() },
+                        onTransformEnd = { vm.onTransformEnd() },
+                        onTextChange = { newText ->
+                            vm.updateElement(element.id) { it.copy(text = newText) }
+                        }
                     )
                 }
             }
@@ -246,13 +308,15 @@ fun ScrapbookEditorScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
                     onClick = { vm.undo() },
                     shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
                 ) {
                     Icon(Icons.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
@@ -264,27 +328,41 @@ fun ScrapbookEditorScreen(
                         OutlinedButton(
                             onClick = { vm.bringToFront(id) },
                             shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
                         ) {
                             Icon(Icons.Filled.FlipToFront, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         OutlinedButton(
                             onClick = { vm.sendToBack(id) },
                             shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
                         ) {
                             Icon(Icons.Filled.FlipToBack, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         OutlinedButton(
                             onClick = {
-                                if (sel.type == CanvasElementType.TEXT) editingText = id
+                                if (sel.type == CanvasElementType.TEXT) {
+                                    vm.onTransformStart()
+                                    editingText = id
+                                }
                             },
                             shape = RoundedCornerShape(14.dp),
                             enabled = sel.type == CanvasElementType.TEXT,
+                            contentPadding = PaddingValues(horizontal = 12.dp),
                         ) { Text("Edit") }
                         OutlinedButton(
                             onClick = { vm.deleteElement(id) },
                             shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp),
                         ) {
-                            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(
+                                Icons.Filled.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Delete", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -302,6 +380,96 @@ fun ScrapbookEditorScreen(
                     CircularProgressIndicator(color = Color.White)
                     Spacer(Modifier.height(12.dp))
                     Text("Publishing to feed…", color = Color.White)
+                }
+            }
+        }
+    }
+
+    if (showPublishPreview != null) {
+        val bmp = showPublishPreview!!
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        var title by remember { mutableStateOf(current?.name ?: "") }
+        var description by remember { mutableStateOf("") }
+
+        ModalBottomSheet(
+            onDismissRequest = { showPublishPreview = null },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .imePadding(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "Publish to Feed",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Image(
+                    bitmap = bmp.asImageBitmap(),
+                    contentDescription = "Preview",
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)
+                        .aspectRatio(canvasSize.width.toFloat() / canvasSize.height.toFloat())
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                        .padding(1.dp)
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { if (it.length <= 1000) title = it },
+                    label = { Text("Title") },
+                    leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("${title.length}/1000") },
+                    singleLine = true,
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { if (it.length <= 1000) description = it },
+                    label = { Text("Description") },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.ChatBubble,
+                            contentDescription = null,
+                            modifier = Modifier.padding(bottom = 48.dp)
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text("${description.length}/1000") },
+                    minLines = 3,
+                    maxLines = 5,
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = { showPublishPreview = null }) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Button(
+                        onClick = {
+                            vm.publishToFeed(bmp, title, description)
+                            showPublishPreview = null
+                        }
+                    ) {
+                        Text("Publish")
+                    }
                 }
             }
         }
@@ -342,6 +510,7 @@ fun ScrapbookEditorScreen(
     showStampPicker?.let { mode ->
         StampPickerDialog(
             stamps = stamps,
+            usedStampIds = canvas.elements.mapNotNull { it.stampId }.toSet(),
             onPick = { stamp ->
                 when (mode) {
                     PickerMode.AddStamp -> vm.addElement(
@@ -359,33 +528,7 @@ fun ScrapbookEditorScreen(
         )
     }
 
-    editingText?.let { id ->
-        val sel = canvas.elements.firstOrNull { it.id == id }
-        if (sel != null) {
-            var value by remember(id) { mutableStateOf(sel.text) }
-            AlertDialog(
-                onDismissRequest = { editingText = null },
-                title = { Text("Edit text") },
-                text = {
-                    OutlinedTextField(
-                        value = value,
-                        onValueChange = { value = it },
-                        placeholder = { Text("Your text…") },
-                        shape = RoundedCornerShape(12.dp),
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        vm.updateElement(id) { it.copy(text = value) }
-                        editingText = null
-                    }) { Text("Save") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { editingText = null }) { Text("Cancel") }
-                },
-            )
-        }
-    }
+
 }
 
 private enum class PickerMode { AddStamp, Polaroid }
@@ -396,13 +539,20 @@ private fun CanvasElementOnBoard(
     stamps: List<Stamp>,
     selected: Boolean,
     canvasSize: IntSize,
+    isEditing: Boolean,
     onSelect: () -> Unit,
     onUpdate: (CanvasElement) -> Unit,
-    onCommit: () -> Unit,
+    onTransformStart: () -> Unit,
+    onTransformEnd: () -> Unit,
+    onTextChange: (String) -> Unit,
 ) {
     if (canvasSize == IntSize.Zero) return
     val w = canvasSize.width.toFloat()
     val h = canvasSize.height.toFloat()
+
+    // rememberUpdatedState giữ reference luôn trỏ tới giá trị mới nhất,
+    // tránh stale closure trong pointerInput (key = element.id không đổi).
+    val latestElement by rememberUpdatedState(element)
 
     Box(
         modifier = Modifier
@@ -418,13 +568,41 @@ private fun CanvasElementOnBoard(
                 detectTapGestures(onTap = { onSelect() })
             }
             .pointerInput(element.id) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    onTransformStart()
+                    do {
+                        val event = awaitPointerEvent()
+                    } while (event.changes.any { it.pressed })
+                    onTransformEnd()
+                }
+            }
+            .pointerInput(element.id) {
                 detectTransformGestures(panZoomLock = false) { _, pan, zoom, rot ->
                     onSelect()
-                    val nx = (element.x + pan.x / w).coerceIn(-0.1f, 1.1f)
-                    val ny = (element.y + pan.y / h).coerceIn(-0.1f, 1.1f)
-                    val ns = (element.scale * zoom).coerceIn(0.2f, 4f)
-                    val nr = element.rotation + rot
-                    onUpdate(element.copy(x = nx, y = ny, scale = ns, rotation = nr))
+                    val el = latestElement
+                    
+                    // Convert local pan to screen pan by applying rotation and scale
+                    val angleRad = el.rotation * Math.PI / 180.0
+                    val cosA = kotlin.math.cos(angleRad).toFloat()
+                    val sinA = kotlin.math.sin(angleRad).toFloat()
+                    
+                    val dx = (pan.x * cosA - pan.y * sinA) * el.scale
+                    val dy = (pan.x * sinA + pan.y * cosA) * el.scale
+
+                    val hwN = (size.width * el.scale / 2f) / w
+                    val hhN = (size.height * el.scale / 2f) / h
+
+                    val minX = kotlin.math.min(hwN, 1f - hwN)
+                    val maxX = kotlin.math.max(hwN, 1f - hwN)
+                    val minY = kotlin.math.min(hhN, 1f - hhN)
+                    val maxY = kotlin.math.max(hhN, 1f - hhN)
+
+                    val nx = (el.x + dx / w).coerceIn(minX, maxX)
+                    val ny = (el.y + dy / h).coerceIn(minY, maxY)
+                    val ns = (el.scale * zoom).coerceIn(0.2f, 4f)
+                    val nr = el.rotation + rot
+                    onUpdate(el.copy(x = nx, y = ny, scale = ns, rotation = nr))
                 }
             }
             .then(
@@ -435,7 +613,12 @@ private fun CanvasElementOnBoard(
                 ) else Modifier,
             ),
     ) {
-        CanvasElementView(element = element, stamps = stamps)
+        CanvasElementView(
+            element = element, 
+            stamps = stamps,
+            isEditing = isEditing,
+            onTextChange = onTextChange,
+        )
     }
 }
 
@@ -449,9 +632,18 @@ private fun EditAssetsSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var tab by remember { mutableStateOf(AssetsTab.Backgrounds) }
     var newText by remember { mutableStateOf("") }
     var font by remember { mutableStateOf(FontPresets.first().first) }
+
+    fun dismissWithAction(action: () -> Unit) {
+        scope.launch {
+            sheetState.hide()
+            action()
+            onDismiss()
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -461,12 +653,13 @@ private fun EditAssetsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .fillMaxHeight(0.6f)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(
-                    onClick = onDismiss,
+                    onClick = { dismissWithAction {} },
                     shape = RoundedCornerShape(18.dp),
                 ) { Text("Done") }
                 Spacer(Modifier.weight(1f))
@@ -498,16 +691,18 @@ private fun EditAssetsSheet(
             when (tab) {
                 AssetsTab.Backgrounds -> BackgroundsGrid(
                     current = background,
-                    onSelect = onBackground,
+                    onSelect = { dismissWithAction { onBackground(it) } },
                 )
-                AssetsTab.Assets -> AssetCategoriesList(onPick = onPickAsset)
+                AssetsTab.Assets -> AssetCategoriesList(onPick = { dismissWithAction { onPickAsset(it) } })
                 AssetsTab.Text -> TextTab(
                     text = newText,
                     onTextChange = { newText = it },
                     font = font,
                     onFontChange = { font = it },
                     onAdd = {
-                        onAddText(newText.ifBlank { "New text" }, font)
+                        val textToAdd = newText.ifBlank { "New text" }
+                        val fontToAdd = font
+                        dismissWithAction { onAddText(textToAdd, fontToAdd) }
                         newText = ""
                     },
                 )
@@ -551,7 +746,7 @@ private fun BackgroundsGrid(current: String, onSelect: (String) -> Unit) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Spacer(Modifier.height(8.dp))
-    Column {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         BackgroundOptions.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -616,43 +811,73 @@ private fun AssetCategorySection(
     assets: List<AssetOption>,
     onPick: (AssetOption) -> Unit,
 ) {
-    Row {
-        Text(title, style = MaterialTheme.typography.titleMedium)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
         Spacer(Modifier.weight(1f))
-        Text("${assets.size}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "${assets.size} styles",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
-    Spacer(Modifier.height(8.dp))
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        items(assets) { a ->
-            Box(
-                modifier = Modifier
-                    .size(width = 90.dp, height = 100.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
-                        RoundedCornerShape(12.dp),
-                    )
-                    .clickable { onPick(a) }
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center,
+    Spacer(Modifier.height(16.dp))
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        assets.chunked(3).forEach { rowAssets ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CanvasElementView(
-                        element = CanvasElement(
-                            id = a.key,
-                            type = a.type,
-                            assetKey = a.key,
-                        ),
-                        stamps = emptyList(),
-                        modifier = Modifier.size(56.dp),
-                    )
-                    Text(
-                        a.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                rowAssets.forEach { a ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(0.85f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFF26211E)) // Dark frame color from screenshot
+                            .clickable { onPick(a) }
+                            .padding(top = 16.dp, bottom = 8.dp, start = 8.dp, end = 8.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CanvasElementView(
+                                    element = CanvasElement(
+                                        id = a.key,
+                                        type = a.type,
+                                        assetKey = a.key,
+                                    ),
+                                    stamps = emptyList(),
+                                    modifier = Modifier.size(64.dp), // slightly larger
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                a.label,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                // Fill empty spots in the last row to maintain grid alignment
+                if (rowAssets.size < 3) {
+                    repeat(3 - rowAssets.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
@@ -670,47 +895,61 @@ private fun TextTab(
     Column {
         Text("Typography UI", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = text,
-            onValueChange = onTextChange,
-            placeholder = { Text("Add Text Layer") },
-            shape = RoundedCornerShape(12.dp),
+        Row(
             modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedTextField(
+                value = text,
+                onValueChange = onTextChange,
+                placeholder = { Text("Enter text...") },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f),
+            )
+            Button(
+                onClick = onAdd,
+                modifier = Modifier.height(56.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
+            ) { Text("Add") }
+        }
+        
+        Spacer(Modifier.height(16.dp))
         Text("Font Presets", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(8.dp))
-        FontPresets.forEach { (key, label) ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onFontChange(key) }
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        label,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        "The quick brown fox jumps over the lazy dog",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 400.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            FontPresets.forEach { (key, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onFontChange(key) }
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "The quick brown fox jumps over the lazy dog",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    RadioButton(selected = font == key, onClick = { onFontChange(key) })
                 }
-                RadioButton(selected = font == key, onClick = { onFontChange(key) })
+                Spacer(Modifier.height(8.dp))
             }
-            Spacer(Modifier.height(8.dp))
         }
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = onAdd,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
-        ) { Text("Add Text Layer") }
     }
 }
 
@@ -749,6 +988,7 @@ private fun PaletteSheet(onPickColor: (Long) -> Unit, onDismiss: () -> Unit) {
 @Composable
 private fun StampPickerDialog(
     stamps: List<Stamp>,
+    usedStampIds: Set<String>,
     onPick: (Stamp) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -766,19 +1006,38 @@ private fun StampPickerDialog(
                     modifier = Modifier.height(340.dp),
                 ) {
                     items(stamps, key = { it.id }) { s ->
+                        val isUsed = usedStampIds.contains(s.id)
                         Box(
                             modifier = Modifier
-                                .aspectRatio(0.8f)
-                                .clip(PostageStampShape)
-                                .background(Color.White)
-                                .clickable { onPick(s) },
+                                .aspectRatio(147f / 190f)
+                                .clickable(enabled = !isUsed) { onPick(s) },
                         ) {
                             AsyncImage(
                                 model = s.imageUri,
                                 contentDescription = s.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize().let {
+                                    if (isUsed) it.alpha(0.5f) else it
+                                },
                             )
+                            if (isUsed) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(4.dp)
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    androidx.compose.material3.Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = MaterialTheme.colorScheme.onPrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

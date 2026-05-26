@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,14 +30,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
-import com.example.scraply.util.PostageStampShape
+
+private const val StampAspectRatio = 147f / 190f
 
 @Composable
 fun StampDetailScreen(
@@ -93,14 +93,13 @@ fun StampDetailScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.75f)
-                        .clip(PostageStampShape)
-                        .background(Color.White),
+                        .aspectRatio(StampAspectRatio),
                     contentAlignment = Alignment.Center,
                 ) {
                     AsyncImage(
                         model = current.imageUri,
                         contentDescription = current.title,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

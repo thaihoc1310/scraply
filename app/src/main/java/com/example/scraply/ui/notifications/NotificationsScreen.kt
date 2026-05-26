@@ -47,9 +47,20 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun NotificationsScreen(onBack: () -> Unit) {
+fun NotificationsScreen(
+    onBack: () -> Unit,
+    onOpenPost: (String, Boolean) -> Unit,
+) {
     val vm: NotificationsViewModel = scraplyViewModel()
     val state by vm.state.collectAsState()
+
+    fun handleClick(item: NotificationItem) {
+        vm.markRead(item)
+        val postId = item.postId
+        if (postId.isNullOrBlank()) return
+        val showComments = item.type == NotificationType.COMMENT
+        onOpenPost(postId, showComments)
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
@@ -101,7 +112,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 items(state.items, key = { it.id }) { item ->
                     NotificationRow(
                         item = item,
-                        onClick = { vm.markRead(item) },
+                        onClick = { handleClick(item) },
                     )
                 }
             }

@@ -27,6 +27,9 @@ class CollectionRepository(
     fun observeStampsIn(collectionId: String): Flow<List<Stamp>> =
         collectionStampDao.observeStampsIn(collectionId).map { list -> list.map { it.toDomain() } }
 
+    fun observeStampLinks(): Flow<List<CollectionStampEntity>> =
+        collectionStampDao.observeAll()
+
     suspend fun ensureDefaultCollection(): StampCollection {
         val existing = collectionDao.getDefault()
         if (existing != null) return existing.toDomain()

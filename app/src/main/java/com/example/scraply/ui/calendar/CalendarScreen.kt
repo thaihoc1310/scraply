@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -80,12 +79,6 @@ fun CalendarScreen(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
                 onClick = onBack,
-            )
-            Spacer(Modifier.weight(1f))
-            CircleIconButton(
-                icon = Icons.Filled.MoreHoriz,
-                contentDescription = "More",
-                onClick = {},
             )
         }
         Spacer(Modifier.height(8.dp))

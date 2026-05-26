@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -36,12 +39,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.vm.scraplyViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun StampDetailsScreen(
     stampUriEncoded: String,
+    onBack: () -> Unit,
     onRetake: () -> Unit,
     onSaved: () -> Unit,
 ) {
@@ -62,6 +67,23 @@ fun StampDetailsScreen(
             .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(40.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CircleIconButton(
+                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Back",
+                onClick = onBack,
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "Stamp details",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()

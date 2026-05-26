@@ -3,11 +3,13 @@ package com.example.scraply.ui.editor
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -21,57 +23,167 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.IntrinsicSize
 import coil.compose.AsyncImage
+import com.example.scraply.R
 import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
-import com.example.scraply.util.PostageStampShape
+
+private const val StampAspectRatio = 147f / 190f
 
 val BackgroundOptions = listOf(
-    "paper" to "Paper",
-    "soft_paper" to "Soft Paper",
-    "plain" to "Plain",
-    "grid" to "Grid",
+    "bg_chalkboard" to "Chalkboard",
+    "bg_cork_board" to "Cork Board",
+    "bg_crumpled_white" to "Crumpled White",
+    "bg_doodle_galaxy" to "Doodle Galaxy",
+    "bg_floral_paper" to "Floral Paper",
+    "bg_floral_paper_2" to "Floral Paper 2",
+    "bg_grid_green" to "Grid Green",
+    "bg_kraft_brown" to "Kraft Brown",
+    "bg_lavender" to "Lavender Dream",
+    "bg_vintage_old" to "Vintage Old",
+    "bg_lined_notebook" to "Lined Notebook",
+    "bg_linen_beige" to "Linen Beige",
+    "bg_midnight_blue" to "Midnight Blue",
+    "bg_mint_pastel" to "Mint Pastel",
+    "bg_old_newspaper" to "Old Newspaper",
+    "bg_pastel_pink" to "Pastel Pink",
+    "bg_purple_pastel" to "Purple Pastel",
+    "bg_floral_script" to "Floral Script",
+    "bg_red_grid" to "Red Grid Note",
+    "bg_starry_night" to "Starry Night",
+    "bg_vintage_cream" to "Vintage Cream",
+    "bg_wood_plank" to "Wood Plank",
+)
+
+/** Maps background key to its asset file path in assets/backgrounds/ */
+private val backgroundAssetMap = mapOf(
+    "bg_chalkboard" to "backgrounds/chalkboard_texture_dark.jpg",
+    "bg_cork_board" to "backgrounds/cork_board_texture.jpg",
+    "bg_crumpled_white" to "backgrounds/crumpled_white_paper.jpg",
+    "bg_doodle_galaxy" to "backgrounds/doodle_galaxy.jpg",
+    "bg_floral_paper" to "backgrounds/floral_paper.jpg",
+    "bg_floral_paper_2" to "backgrounds/floral_paper_2.jpg",
+    "bg_grid_green" to "backgrounds/grid_green.jpg",
+    "bg_kraft_brown" to "backgrounds/kraft_paper_brown_texture.jpg",
+    "bg_lavender" to "backgrounds/lavender_dream.jpg",
+    "bg_vintage_old" to "backgrounds/lilydust-old-2012064.jpg",
+    "bg_lined_notebook" to "backgrounds/lined_notebook_paper.jpg",
+    "bg_linen_beige" to "backgrounds/linen_fabric_texture_beige.jpg",
+    "bg_midnight_blue" to "backgrounds/midnight_collage_blue.jpg",
+    "bg_mint_pastel" to "backgrounds/mint_green_pastel_texture.jpg",
+    "bg_old_newspaper" to "backgrounds/old_newspaper_texture.jpg",
+    "bg_pastel_pink" to "backgrounds/pastel_pink_paper_soft.jpg",
+    "bg_purple_pastel" to "backgrounds/purple_pastel.jpg",
+    "bg_floral_script" to "backgrounds/ractapopulous-background-2009164_1920.jpg",
+    "bg_red_grid" to "backgrounds/red_grid_note.jpg",
+    "bg_starry_night" to "backgrounds/starry_night_yellow.jpg",
+    "bg_vintage_cream" to "backgrounds/vintage_paper_texture_cream.jpg",
+    "bg_wood_plank" to "backgrounds/wood_plank_texture.jpg",
 )
 
 data class AssetOption(val key: String, val label: String, val type: CanvasElementType)
 
-val TapeAssets = (1..6).map { AssetOption("tape_$it", "Tape %02d".format(it), CanvasElementType.TAPE) }
-val StickerAssets = (1..7).map { AssetOption("sticker_$it", "Sticker %02d".format(it), CanvasElementType.STICKER) }
-val PaperCutAssets = (1..5).map { AssetOption("papercut_$it", "Paper %02d".format(it), CanvasElementType.PAPER_CUT) }
+val TapeAssets = (1..8).map { AssetOption("tape_$it", "Tape %02d".format(it), CanvasElementType.TAPE) }
+val StickerAssets = (1..17).map { AssetOption("sticker_$it", "Sticker %02d".format(it), CanvasElementType.STICKER) }
+val PaperCutAssets = (1..6).map { AssetOption("papercut_$it", "Paper Cut %02d".format(it), CanvasElementType.PAPER_CUT) }
+
+/** Maps sticker key to its asset file path in assets/stickers/ */
+private val stickerAssetMap = (1..17).associate { "sticker_$it" to "stickers/sticker_%02d.png".format(it) }
+
+/** Maps papercut key to its asset file path in assets/papercuts/ */
+private val paperCutAssetMap = (1..6).associate { "papercut_$it" to "paper_cuts/paper_cut_%02d.png".format(it) }
+
+/** Maps tape key to its asset file path in assets/tapes/ */
+private val tapeAssetMap = mapOf(
+    "tape_1" to "tapes/Tape_01.png",
+    "tape_2" to "tapes/Tape_02.png",
+    "tape_3" to "tapes/Tape_03.png",
+    "tape_4" to "tapes/Tape_04.png",
+    "tape_5" to "tapes/Tape_05.png",
+    "tape_6" to "tapes/Tape_06.png",
+    "tape_7" to "tapes/Tape_07.png",
+    "tape_8" to "tapes/Tape_08.png",
+)
 
 val FontPresets = listOf(
     "classic_serif" to "Classic Serif",
-    "fz_kingshare" to "Fz Kingshare",
+    "fz_kingshare" to "Cursive",
+    "dancing_script" to "Dancing Script",
+    "pacifico" to "Pacifico",
+    "caveat" to "Caveat",
+    "playfair" to "Playfair Display",
+    "lobster" to "Lobster",
+    "indie_flower" to "Indie Flower",
+    "great_vibes" to "Great Vibes",
+    "sacramento" to "Sacramento",
+    "permanent_marker" to "Permanent Marker",
+    "architects_daughter" to "Architects Daughter",
+)
+
+/** Maps font key to its FontFamily */
+private val fontFamilyMap = mapOf(
+    "classic_serif" to FontFamily.Serif,
+    "fz_kingshare" to FontFamily.Cursive,
+    "dancing_script" to FontFamily(Font(R.font.dancingscript_variablefont_wght)),
+    "pacifico" to FontFamily(Font(R.font.pacifico_regular)),
+    "caveat" to FontFamily(Font(R.font.caveat_variablefont_wght)),
+    "playfair" to FontFamily(Font(R.font.playfairdisplaysc_blackitalic)),
+    "lobster" to FontFamily(Font(R.font.lobster_regular)),
+    "indie_flower" to FontFamily(Font(R.font.indieflower_regular)),
+    "great_vibes" to FontFamily(Font(R.font.greatvibes_regular)),
+    "sacramento" to FontFamily(Font(R.font.sacramento_regular)),
+    "permanent_marker" to FontFamily(Font(R.font.permanentmarker_regular)),
+    "architects_daughter" to FontFamily(Font(R.font.architectsdaughter_regular)),
 )
 
 @Composable
 fun BackgroundSurface(backgroundType: String, modifier: Modifier = Modifier) {
-    when (backgroundType) {
-        "plain" -> Box(modifier = modifier.background(Color(0xFFFFFDF9)))
-        "grid" -> Box(modifier = modifier.background(Color(0xFFFBF7EF))) {
-            Canvas(Modifier.fillMaxSize()) {
-                val step = 28f
-                val strokeColor = Color(0xFFEFE6D8)
-                var x = 0f
-                while (x < size.width) {
-                    drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(x, 0f),
-                        end = androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 1f)
-                    x += step
-                }
-                var y = 0f
-                while (y < size.height) {
-                    drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(0f, y),
-                        end = androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 1f)
-                    y += step
+    val assetPath = backgroundAssetMap[backgroundType]
+    if (assetPath != null) {
+        // Load real image from assets/ folder
+        Box(modifier = modifier.background(Color(0xFFF1EADE))) {
+            AsyncImage(
+                model = "file:///android_asset/$assetPath",
+                contentDescription = backgroundType,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    } else {
+        // Original code-drawn backgrounds
+        when (backgroundType) {
+            "plain" -> Box(modifier = modifier.background(Color(0xFFFFFDF9)))
+            "grid" -> Box(modifier = modifier.background(Color(0xFFFBF7EF))) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val step = 28f
+                    val strokeColor = Color(0xFFEFE6D8)
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(x, 0f),
+                            end = androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 1f)
+                        x += step
+                    }
+                    var y = 0f
+                    while (y < size.height) {
+                        drawLine(strokeColor, start = androidx.compose.ui.geometry.Offset(0f, y),
+                            end = androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 1f)
+                        y += step
+                    }
                 }
             }
+            "soft_paper" -> Box(modifier = modifier.background(Color(0xFFF7F1E8)))
+            else /* paper */ -> Box(modifier = modifier.background(Color(0xFFF1EADE)))
         }
-        "soft_paper" -> Box(modifier = modifier.background(Color(0xFFF7F1E8)))
-        else /* paper */ -> Box(modifier = modifier.background(Color(0xFFF1EADE)))
     }
 }
 
@@ -81,22 +193,23 @@ fun CanvasElementView(
     element: CanvasElement,
     stamps: List<Stamp>,
     modifier: Modifier = Modifier,
+    isEditing: Boolean = false,
+    onTextChange: (String) -> Unit = {},
 ) {
     when (element.type) {
         CanvasElementType.STAMP -> {
             val stamp = stamps.firstOrNull { it.id == element.stampId }
             Box(
                 modifier = modifier
-                    .size(width = 160.dp, height = 190.dp)
-                    .clip(PostageStampShape)
-                    .background(Color.White),
+                    .width(160.dp)
+                    .aspectRatio(StampAspectRatio),
                 contentAlignment = Alignment.Center,
             ) {
                 if (stamp != null) {
                     AsyncImage(
                         model = stamp.imageUri,
                         contentDescription = stamp.title,
-                        contentScale = ContentScale.Crop,
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -122,7 +235,7 @@ fun CanvasElementView(
                         AsyncImage(
                             model = stamp.imageUri,
                             contentDescription = stamp.title,
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -130,58 +243,116 @@ fun CanvasElementView(
             }
         }
         CanvasElementType.TAPE -> {
-            val tint = tapeTint(element.assetKey)
-            Box(
-                modifier = modifier
-                    .width(150.dp)
-                    .height(42.dp)
-                    .background(tint),
-            )
+            val assetPath = tapeAssetMap[element.assetKey]
+            if (assetPath != null) {
+                AsyncImage(
+                    model = "file:///android_asset/$assetPath",
+                    contentDescription = element.assetKey,
+                    contentScale = ContentScale.Fit,
+                    modifier = modifier.width(150.dp),
+                )
+            } else {
+                val tint = tapeTint(element.assetKey)
+                Box(
+                    modifier = modifier
+                        .width(150.dp)
+                        .height(42.dp)
+                        .background(tint),
+                )
+            }
         }
         CanvasElementType.STICKER -> {
-            val color = stickerColor(element.assetKey)
-            Canvas(modifier = modifier.size(86.dp)) {
-                val cx = size.width / 2f
-                val cy = size.height / 2f
-                val petals = 8
-                val r = size.minDimension / 2f
-                val petalPath = Path()
-                for (i in 0 until petals) {
-                    val ang = (i * 2 * Math.PI / petals).toFloat()
-                    val px = cx + kotlin.math.cos(ang) * r * 0.85f
-                    val py = cy + kotlin.math.sin(ang) * r * 0.85f
-                    petalPath.addOval(
-                        androidx.compose.ui.geometry.Rect(
-                            left = px - r * 0.32f, top = py - r * 0.2f,
-                            right = px + r * 0.32f, bottom = py + r * 0.2f,
-                        ),
-                    )
+            val assetPath = stickerAssetMap[element.assetKey]
+            if (assetPath != null) {
+                AsyncImage(
+                    model = "file:///android_asset/$assetPath",
+                    contentDescription = element.assetKey,
+                    contentScale = ContentScale.Fit,
+                    modifier = modifier.sizeIn(maxWidth = 150.dp, maxHeight = 150.dp),
+                )
+            } else {
+                val color = stickerColor(element.assetKey)
+                Canvas(modifier = modifier.size(86.dp)) {
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    val petals = 8
+                    val r = size.minDimension / 2f
+                    val petalPath = Path()
+                    for (i in 0 until petals) {
+                        val ang = (i * 2 * Math.PI / petals).toFloat()
+                        val px = cx + kotlin.math.cos(ang) * r * 0.85f
+                        val py = cy + kotlin.math.sin(ang) * r * 0.85f
+                        petalPath.addOval(
+                            androidx.compose.ui.geometry.Rect(
+                                left = px - r * 0.32f, top = py - r * 0.2f,
+                                right = px + r * 0.32f, bottom = py + r * 0.2f,
+                            ),
+                        )
+                    }
+                    drawPath(petalPath, color)
+                    drawCircle(Color(0xFFFFF2B0), radius = r * 0.28f, center = androidx.compose.ui.geometry.Offset(cx, cy))
                 }
-                drawPath(petalPath, color)
-                drawCircle(Color(0xFFFFF2B0), radius = r * 0.28f, center = androidx.compose.ui.geometry.Offset(cx, cy))
             }
         }
         CanvasElementType.PAPER_CUT -> {
-            Box(
-                modifier = modifier
-                    .size(width = 140.dp, height = 100.dp)
-                    .background(paperCutTint(element.assetKey), RoundedCornerShape(4.dp)),
-            )
+            val assetPath = paperCutAssetMap[element.assetKey]
+            if (assetPath != null) {
+                AsyncImage(
+                    model = "file:///android_asset/$assetPath",
+                    contentDescription = element.assetKey,
+                    contentScale = ContentScale.Fit,
+                    modifier = modifier.sizeIn(maxWidth = 160.dp, maxHeight = 160.dp),
+                )
+            } else {
+                Box(
+                    modifier = modifier
+                        .size(width = 140.dp, height = 100.dp)
+                        .background(paperCutTint(element.assetKey), RoundedCornerShape(4.dp)),
+                )
+            }
         }
         CanvasElementType.TEXT -> {
-            val family = when (element.font) {
-                "fz_kingshare" -> FontFamily.Cursive
-                else -> FontFamily.Serif
-            }
-            Text(
-                text = element.text.ifBlank { "Double-tap to edit" },
-                style = TextStyle(
-                    fontFamily = family,
-                    fontSize = 28.sp,
-                    color = Color(element.color.toInt().toLong().let { if (it == 0L) 0xFF1F1B18 else it }),
-                ),
-                modifier = modifier.padding(4.dp),
+            val family = fontFamilyMap[element.font] ?: FontFamily.Serif
+            val textStyle = TextStyle(
+                fontFamily = family,
+                fontSize = 28.sp,
+                color = Color(element.color.toInt().toLong().let { if (it == 0L) 0xFF1F1B18 else it }),
             )
+
+            if (isEditing) {
+                val focusRequester = remember { FocusRequester() }
+                val textFieldValue = remember {
+                    androidx.compose.runtime.mutableStateOf(
+                        androidx.compose.ui.text.input.TextFieldValue(
+                            text = element.text,
+                            selection = androidx.compose.ui.text.TextRange(element.text.length)
+                        )
+                    )
+                }
+                
+                androidx.compose.foundation.text.BasicTextField(
+                    value = textFieldValue.value,
+                    onValueChange = {
+                        textFieldValue.value = it
+                        onTextChange(it.text)
+                    },
+                    textStyle = textStyle,
+                    modifier = modifier
+                        .padding(4.dp)
+                        .defaultMinSize(minWidth = 20.dp)
+                        .width(IntrinsicSize.Min)
+                        .focusRequester(focusRequester),
+                )
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
+            } else {
+                Text(
+                    text = element.text.ifBlank { "Double-tap to edit" },
+                    style = textStyle,
+                    modifier = modifier.padding(4.dp),
+                )
+            }
         }
     }
 }
