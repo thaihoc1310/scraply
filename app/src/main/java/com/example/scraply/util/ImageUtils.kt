@@ -109,6 +109,47 @@ object ImageUtils {
         return result
     }
 
+    fun renderPostageStamp(
+        context: Context,
+        source: Bitmap,
+        outSizePx: Int = 1024,
+        translateX: Float = 0f,
+        translateY: Float = 0f,
+        scale: Float = 1f,
+    ): Bitmap {
+        val aspect = 147f / 190f
+        val outW = outSizePx
+        val outH = (outSizePx / aspect).toInt()
+        val result = createBitmap(outW, outH)
+        val canvas = Canvas(result)
+
+        val srcAspect = source.width.toFloat() / source.height.toFloat()
+        val outAspect = outW.toFloat() / outH.toFloat()
+        val baseScale = if (srcAspect > outAspect) {
+            outH.toFloat() / source.height.toFloat()
+        } else {
+            outW.toFloat() / source.width.toFloat()
+        }
+        val finalScale = baseScale * scale
+        val drawW = source.width * finalScale
+        val drawH = source.height * finalScale
+        val cx = outW / 2f + translateX * outW
+        val cy = outH / 2f + translateY * outH
+        val dst = RectF(cx - drawW / 2f, cy - drawH / 2f, cx + drawW / 2f, cy + drawH / 2f)
+        canvas.drawBitmap(source, null, dst, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+
+        val mask = renderStampMask(context, outW, outH)
+        val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+        }
+        canvas.drawBitmap(mask, 0f, 0f, maskPaint)
+        maskPaint.xfermode = null
+        mask.recycle()
+
+        drawStampStroke(context, canvas, outW, outH)
+        return result
+    }
+
     /** Save a bitmap to app internal files/stamps and return the file URI string. */
     fun saveStampPng(context: Context, bitmap: Bitmap): String {
         val dir = File(context.filesDir, "stamps").apply { mkdirs() }

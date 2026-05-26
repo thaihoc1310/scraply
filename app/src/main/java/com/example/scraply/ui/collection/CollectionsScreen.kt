@@ -39,12 +39,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.PillBadge
 import com.example.scraply.ui.common.ScraplyCard
+import com.example.scraply.ui.common.StampImage
 
 private const val StampAspectRatio = 147f / 190f
 
@@ -226,10 +225,9 @@ private fun CollectionCardView(
                                     .aspectRatio(StampAspectRatio),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                AsyncImage(
-                                    model = uri,
+                                StampImage(
+                                    imageUri = uri,
                                     contentDescription = null,
-                                    contentScale = ContentScale.Fit,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }

@@ -105,8 +105,9 @@ class FirestoreSyncRepository(
         stamps.forEach { db.stampDao().upsert(it); pushStamp(uid, it) }
 
         val collections = db.collectionDao().getAllSync().map { if (it.userId == null) it.copy(userId = uid) else it }
-        collections.forEach { c ->
-            db.collectionDao().upsert(c)
+        collections.forEach { db.collectionDao().upsert(it) }
+        normalizeDefaultCollections(uid)
+        db.collectionDao().getAllSync().forEach { c ->
             val ids = db.collectionStampDao().stampIdsIn(c.id)
             pushCollection(uid, c, ids)
         }
@@ -131,6 +132,7 @@ class FirestoreSyncRepository(
             db.collectionStampDao().removeAllInCollection(c.id)
             stampIds.forEach { sid -> db.collectionStampDao().insert(CollectionStampEntity(c.id, sid)) }
         }
+        normalizeDefaultCollections(uid)
 
         val projectDocs = projectsCol(uid).get().await().documents
         projectDocs.forEach { doc ->
@@ -138,6 +140,25 @@ class FirestoreSyncRepository(
             db.projectDao().upsert(p)
         }
     }.onFailure { Log.w(TAG, "pullAllForUser failed: ${it.message}") }
+
+    private suspend fun normalizeDefaultCollections(uid: String) {
+        val defaults = db.collectionDao().getDefaults()
+        if (defaults.size <= 1) return
+
+        val canonical = defaults.first()
+        val duplicates = defaults.drop(1)
+        duplicates.forEach { duplicate ->
+            db.collectionStampDao().stampIdsIn(duplicate.id).forEach { stampId ->
+                db.collectionStampDao().insert(CollectionStampEntity(canonical.id, stampId))
+            }
+            db.collectionStampDao().removeAllInCollection(duplicate.id)
+        }
+
+        val duplicateIds = duplicates.map { it.id }
+        db.collectionDao().deleteByIds(duplicateIds)
+        duplicateIds.forEach { deleteCollection(uid, it) }
+        pushCollection(uid, canonical.copy(userId = uid), db.collectionStampDao().stampIdsIn(canonical.id))
+    }
 
     private suspend fun downloadAndCacheStamp(uid: String, entity: StampEntity, remoteUrl: String): StampEntity {
         val cached = File(appContext.filesDir, "stamps/${entity.id}.png")

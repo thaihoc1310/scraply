@@ -205,6 +205,7 @@ fun UploadStampScreen(
                         scope.launch {
                             val out = withContext(Dispatchers.IO) {
                                 val stamped = ImageUtils.renderPostageStamp(
+                                    context = context,
                                     source = current,
                                     translateX = offsetX,
                                     translateY = offsetY,

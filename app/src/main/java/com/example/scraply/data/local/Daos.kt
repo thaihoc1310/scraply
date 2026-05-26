@@ -46,6 +46,9 @@ interface CollectionDao {
     @Query("SELECT * FROM collections WHERE isDefault = 1 LIMIT 1")
     suspend fun getDefault(): CollectionEntity?
 
+    @Query("SELECT * FROM collections WHERE isDefault = 1 ORDER BY createdAt ASC")
+    suspend fun getDefaults(): List<CollectionEntity>
+
     @Query("SELECT * FROM collections WHERE id = :id")
     suspend fun getById(id: String): CollectionEntity?
 
@@ -57,6 +60,9 @@ interface CollectionDao {
 
     @Query("DELETE FROM collections WHERE id = :id AND isDefault = 0")
     suspend fun deleteById(id: String)
+
+    @Query("DELETE FROM collections WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 }
 
 @Dao
