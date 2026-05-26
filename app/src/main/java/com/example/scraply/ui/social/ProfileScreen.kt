@@ -8,10 +8,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,29 +24,30 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,12 +59,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scraply.data.auth.ScraplyUser
 import com.example.scraply.data.remote.FeedPost
+import com.example.scraply.ui.common.ScraplyDialog
+import com.example.scraply.ui.common.ScraplyDialogCancelButton
+import com.example.scraply.ui.common.ScraplyOutlinedTextField
 import com.example.scraply.ui.notifications.NotificationsViewModel
 import com.example.scraply.ui.vm.scraplyViewModel
 import java.io.File
@@ -68,7 +76,10 @@ import java.io.FileOutputStream
 import java.util.UUID
 
 @Composable
-fun ProfileScreen(onOpenNotifications: () -> Unit = {}) {
+fun ProfileScreen(
+    onOpenNotifications: () -> Unit = {},
+    onOpenPost: (String) -> Unit = {},
+) {
     val vm: ProfileViewModel = scraplyViewModel()
     val notificationsVm: NotificationsViewModel = scraplyViewModel()
     val authState by vm.authState.collectAsState()
@@ -111,7 +122,7 @@ fun ProfileScreen(onOpenNotifications: () -> Unit = {}) {
                 onCancelEdit = { vm.cancelEdit() },
                 onSaveEdit = { dn, un, bio, path -> vm.saveProfile(dn, un, bio, path) },
                 onDismissMessage = { vm.dismissMessage() },
-                onDeletePost = { vm.deletePost(it) },
+                onOpenPost = { post -> onOpenPost(post.id) },
             )
         }
     }
@@ -128,7 +139,7 @@ private fun ProfileBody(
     onCancelEdit: () -> Unit,
     onSaveEdit: (displayName: String, username: String, bio: String, newAvatarPath: String?) -> Unit,
     onDismissMessage: () -> Unit,
-    onDeletePost: (FeedPost) -> Unit,
+    onOpenPost: (FeedPost) -> Unit,
 ) {
     val scroll = rememberScrollState()
     Column(
@@ -136,13 +147,7 @@ private fun ProfileBody(
     ) {
         ProfileHeader(profile, myPostsCount = myPosts.size, onEdit = onBeginEdit)
 
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Your posts",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-        )
+        Spacer(Modifier.height(12.dp))
         if (myPosts.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(32.dp),
@@ -155,7 +160,7 @@ private fun ProfileBody(
                 )
             }
         } else {
-            MyPostsGrid(posts = myPosts, onDelete = onDeletePost)
+            MyPostsGrid(posts = myPosts, onOpenPost = onOpenPost)
         }
     }
 
@@ -273,71 +278,168 @@ private fun Stat(count: Long, label: String) {
 }
 
 @Composable
-private fun MyPostsGrid(posts: List<FeedPost>, onDelete: (FeedPost) -> Unit) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier.fillMaxWidth().height((((posts.size + 1) / 2) * 240).dp),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        userScrollEnabled = false,
-    ) {
-        items(posts, key = { it.id }) { post ->
-            MyPostCard(post = post, onDelete = { onDelete(post) })
+private fun MyPostsGrid(posts: List<FeedPost>, onOpenPost: (FeedPost) -> Unit) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val columns = 3
+        val spacing = 2.dp
+        val rows = (posts.size + columns - 1) / columns
+        val itemSize = (maxWidth - spacing * (columns - 1).toFloat()) / columns.toFloat()
+        val gridHeight = itemSize * rows.toFloat() + spacing * (rows - 1).coerceAtLeast(0).toFloat()
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
+            modifier = Modifier.fillMaxWidth().height(gridHeight),
+            horizontalArrangement = Arrangement.spacedBy(spacing),
+            verticalArrangement = Arrangement.spacedBy(spacing),
+            userScrollEnabled = false,
+        ) {
+            items(posts, key = { it.id }) { post ->
+                MyPostThumb(post = post, onClick = { onOpenPost(post) })
+            }
         }
     }
 }
 
 @Composable
-private fun MyPostCard(post: FeedPost, onDelete: () -> Unit) {
-    var showMenu by remember { mutableStateOf(false) }
-    Column(
+private fun MyPostThumb(post: FeedPost, onClick: () -> Unit) {
+    AsyncImage(
+        model = post.imageUrl,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable { showMenu = true }
-            .padding(8.dp),
+            .aspectRatio(1f)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick),
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfilePostsFeedScreen(
+    initialPostId: String,
+    onBack: () -> Unit,
+) {
+    val vm: ProfileViewModel = scraplyViewModel()
+    val profileState by vm.profile.collectAsState()
+    val authState by vm.authState.collectAsState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var activeCommentsPost by remember { mutableStateOf<FeedPost?>(null) }
+    var activeLikesPost by remember { mutableStateOf<FeedPost?>(null) }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
     ) {
-        AsyncImage(
-            model = post.imageUrl, contentDescription = null,
-            modifier = Modifier.fillMaxWidth().aspectRatio(0.75f)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0x22000000)),
-        )
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Filled.Favorite,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(Modifier.width(4.dp))
-            Text("${post.likeCount}", style = MaterialTheme.typography.labelMedium)
-            Spacer(Modifier.width(10.dp))
-            Icon(
-                Icons.Filled.ChatBubbleOutline,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(Modifier.width(4.dp))
-            Text("${post.commentCount}", style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.height(40.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+            }
+            Text("Posts", style = MaterialTheme.typography.titleLarge)
+        }
+
+        AuthGate(
+            vm = vm,
+            signedOutHeadline = "Your profile",
+            signedOutSubtext = "Sign in to view your published scrapbooks.",
+        ) {
+            val posts = profileState.myPosts
+
+            if (posts.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "You haven't published any scrapbooks yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                val initialPostIndex = posts.indexOfFirst { it.id == initialPostId }
+                    .takeIf { it >= 0 } ?: 0
+                ProfilePostsFeedList(
+                    posts = posts,
+                    initialPostIndex = initialPostIndex,
+                    currentUserId = authState.user?.uid,
+                    onLike = { vm.toggleLike(it) },
+                    onOpenComments = {
+                        activeLikesPost = null
+                        activeCommentsPost = it
+                    },
+                    onOpenLikes = {
+                        activeCommentsPost = null
+                        activeLikesPost = it
+                    },
+                    onEditPost = { post, title, description ->
+                        vm.updatePostDetails(post, title, description)
+                    },
+                    onDeletePost = { vm.deletePost(it) },
+                )
+            }
         }
     }
-    if (showMenu) {
-        AlertDialog(
-            onDismissRequest = { showMenu = false },
-            title = { Text("Post") },
-            text = { Text("Remove this scrapbook from your published feed?") },
-            confirmButton = {
-                TextButton(onClick = { onDelete(); showMenu = false }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showMenu = false }) { Text("Cancel") }
-            },
-        )
+
+    val commentsPost = activeCommentsPost
+    if (commentsPost != null) {
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { activeCommentsPost = null },
+        ) {
+            CommentsPanel(
+                postId = commentsPost.id,
+                onBack = null,
+                showTopBar = false,
+                header = null,
+                modifier = Modifier.fillMaxHeight(0.6f),
+            )
+        }
+    }
+
+    val likesPost = activeLikesPost
+    if (likesPost != null) {
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { activeLikesPost = null },
+        ) {
+            LikesPanel(
+                postId = likesPost.id,
+                showTopBar = false,
+                modifier = Modifier.fillMaxHeight(0.6f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfilePostsFeedList(
+    posts: List<FeedPost>,
+    initialPostIndex: Int,
+    currentUserId: String?,
+    onLike: (FeedPost) -> Unit,
+    onOpenComments: (FeedPost) -> Unit,
+    onOpenLikes: (FeedPost) -> Unit,
+    onEditPost: (FeedPost, String, String) -> Unit,
+    onDeletePost: (FeedPost) -> Unit,
+) {
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialPostIndex)
+
+    LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        itemsIndexed(posts, key = { _, post -> post.id }) { _, post ->
+            FeedCard(
+                post = post,
+                onLike = { onLike(post) },
+                onOpenComments = { onOpenComments(post) },
+                currentUserId = currentUserId,
+                onEditPost = onEditPost,
+                onDeletePost = onDeletePost,
+                onOpenLikes = { onOpenLikes(post) },
+            )
+        }
     }
 }
 
@@ -358,10 +460,10 @@ private fun EditProfileDialog(
         ActivityResultContracts.PickVisualMedia(),
     ) { uri -> if (uri != null) pendingAvatarUri = uri }
 
-    AlertDialog(
+    ScraplyDialog(
+        title = "Edit profile",
         onDismissRequest = onDismiss,
-        title = { Text("Edit profile") },
-        text = {
+        content = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
@@ -401,30 +503,32 @@ private fun EditProfileDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedTextField(
+                ScraplyOutlinedTextField(
                     value = displayName,
                     onValueChange = { displayName = it },
-                    label = { Text("Display name") },
+                    label = "Display name",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                ScraplyOutlinedTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = { Text("Username") },
+                    label = "Username",
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                ScraplyOutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it.take(160) },
-                    label = { Text("Bio") },
+                    label = "Bio",
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
                 )
             }
         },
-        confirmButton = {
+        actions = {
+            ScraplyDialogCancelButton(onClick = onDismiss)
+            Spacer(Modifier.width(8.dp))
             Button(
                 onClick = {
                     val localPath = pendingAvatarUri?.let { copyUriToCache(ctx, it) }
@@ -443,13 +547,6 @@ private fun EditProfileDialog(
                     Spacer(Modifier.width(8.dp))
                 }
                 Text("Save")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("Cancel")
             }
         },
     )

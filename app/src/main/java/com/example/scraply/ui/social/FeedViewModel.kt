@@ -56,7 +56,8 @@ class FeedViewModel(
                         username = existing?.username,
                         avatarUrl = existing?.avatarUrl,
                         likedByMe = existing?.likedByMe ?: post.likedByMe,
-                        savedByMe = existing?.savedByMe ?: post.savedByMe
+                        savedByMe = existing?.savedByMe ?: post.savedByMe,
+                        previewComments = existing?.previewComments.orEmpty(),
                     )
 
                     // If we have a pending like/unlike, keep the optimistic state to prevent "jumping"
@@ -75,7 +76,8 @@ class FeedViewModel(
                 // Then perform hydration in background
                 val hydrated = runCatching { social.hydratePostAuthors(merged) }.getOrDefault(merged)
                 val enriched = runCatching { social.hydratePostEngagement(uid, hydrated) }.getOrDefault(hydrated)
-                val ranked = runCatching { social.rankByFollows(uid, enriched) }.getOrDefault(enriched)
+                val withPreviews = runCatching { social.hydratePostCommentPreviews(enriched) }.getOrDefault(enriched)
+                val ranked = runCatching { social.rankByFollows(uid, withPreviews) }.getOrDefault(withPreviews)
                 _feed.value = _feed.value.copy(feed = ranked, isLoading = false)
             }
             .launchIn(viewModelScope)
@@ -112,6 +114,46 @@ class FeedViewModel(
                             if (item.id == post.id) item.copy(likedByMe = post.likedByMe, likeCount = post.likeCount) else item
                         }
                     )
+                }
+        }
+    }
+
+    fun updatePostDetails(post: FeedPost, title: String, description: String) {
+        val social = socialRepository ?: return
+        val uid = authState.value.user?.uid ?: return
+        val cleanTitle = title.trim().take(1000).ifBlank { null }
+        val cleanDescription = description.trim().take(1000).ifBlank { null }
+        val previousFeed = _feed.value.feed
+
+        _feed.value = _feed.value.copy(
+            feed = previousFeed.map { item ->
+                if (item.id == post.id) {
+                    item.copy(title = cleanTitle, description = cleanDescription)
+                } else {
+                    item
+                }
+            },
+        )
+        viewModelScope.launch {
+            runCatching { social.updatePostDetails(post.id, uid, title, description) }
+                .onFailure {
+                    Log.e("FeedVM", "updatePostDetails failed for post=${post.id}", it)
+                    _feed.value = _feed.value.copy(feed = previousFeed)
+                }
+        }
+    }
+
+    fun deletePost(post: FeedPost) {
+        val social = socialRepository ?: return
+        val uid = authState.value.user?.uid ?: return
+        val previousFeed = _feed.value.feed
+
+        _feed.value = _feed.value.copy(feed = previousFeed.filterNot { it.id == post.id })
+        viewModelScope.launch {
+            runCatching { social.deletePost(post.id, uid) }
+                .onFailure {
+                    Log.e("FeedVM", "deletePost failed for post=${post.id}", it)
+                    _feed.value = _feed.value.copy(feed = previousFeed)
                 }
         }
     }

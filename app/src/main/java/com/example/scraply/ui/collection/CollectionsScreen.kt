@@ -22,14 +22,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarViewMonth
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +40,12 @@ import androidx.compose.ui.unit.dp
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.PillBadge
 import com.example.scraply.ui.common.ScraplyCard
+import com.example.scraply.ui.common.ScraplyDialog
+import com.example.scraply.ui.common.ScraplyDialogCancelButton
+import com.example.scraply.ui.common.ScraplyDialogConfirmButton
+import com.example.scraply.ui.common.ScraplyDropdownMenu
+import com.example.scraply.ui.common.ScraplyDropdownMenuItem
+import com.example.scraply.ui.common.ScraplyOutlinedTextField
 import com.example.scraply.ui.common.StampImage
 
 private const val StampAspectRatio = 147f / 190f
@@ -165,16 +168,19 @@ private fun CollectionCardView(
                             contentDescription = "More",
                             onClick = { menuOpen = true },
                         )
-                        DropdownMenu(
+                        ScraplyDropdownMenu(
                             expanded = menuOpen,
                             onDismissRequest = { menuOpen = false },
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Rename") },
+                            ScraplyDropdownMenuItem(
+                                label = "Rename",
+                                icon = Icons.Filled.Edit,
                                 onClick = { menuOpen = false; onRename() },
                             )
-                            DropdownMenuItem(
-                                text = { Text("Delete") },
+                            ScraplyDropdownMenuItem(
+                                label = "Delete",
+                                icon = Icons.Filled.Delete,
+                                destructive = true,
                                 onClick = { menuOpen = false; onDelete() },
                             )
                         }
@@ -249,19 +255,22 @@ fun TextDialog(
     onDismiss: () -> Unit,
 ) {
     var value by remember { mutableStateOf(initial) }
-    AlertDialog(
+    ScraplyDialog(
+        title = title,
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
+        content = {
+            ScraplyOutlinedTextField(
                 value = value,
                 onValueChange = { value = it },
-                placeholder = { Text(placeholder) },
+                placeholder = placeholder,
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         },
-        confirmButton = { TextButton(onClick = { onConfirm(value) }) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        actions = {
+            ScraplyDialogCancelButton(onClick = onDismiss)
+            Spacer(Modifier.width(8.dp))
+            ScraplyDialogConfirmButton(label = confirmLabel, onClick = { onConfirm(value) })
+        },
     )
 }

@@ -22,9 +22,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -45,6 +45,8 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import com.example.scraply.ui.collection.TextDialog
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.ScraplyCard
+import com.example.scraply.ui.common.ScraplyDropdownMenu
+import com.example.scraply.ui.common.ScraplyDropdownMenuItem
 import com.example.scraply.ui.common.StampImage
 
 private const val StampAspectRatio = 147f / 190f
@@ -170,16 +172,19 @@ private fun ProjectCardView(
                         contentDescription = "More",
                         onClick = { menuOpen = true },
                     )
-                    DropdownMenu(
+                    ScraplyDropdownMenu(
                         expanded = menuOpen,
                         onDismissRequest = { menuOpen = false },
                     ) {
-                        DropdownMenuItem(
-                            text = { Text("Rename") },
+                        ScraplyDropdownMenuItem(
+                            label = "Rename",
+                            icon = Icons.Filled.Edit,
                             onClick = { menuOpen = false; onRename() },
                         )
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
+                        ScraplyDropdownMenuItem(
+                            label = "Delete",
+                            icon = Icons.Filled.Delete,
+                            destructive = true,
                             onClick = { menuOpen = false; onDelete() },
                         )
                     }

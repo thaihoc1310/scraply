@@ -28,6 +28,7 @@ import com.example.scraply.ui.notifications.NotificationsScreen
 import com.example.scraply.ui.social.CommentsScreen
 import com.example.scraply.ui.social.FeedPostScreen
 import com.example.scraply.ui.social.FeedScreen
+import com.example.scraply.ui.social.ProfilePostsFeedScreen
 import com.example.scraply.ui.social.ProfileScreen
 import com.example.scraply.ui.stamp.StampCameraScreen
 import com.example.scraply.ui.stamp.StampCropScreen
@@ -226,6 +227,18 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             composable(Routes.PROFILE) {
                 ProfileScreen(
                     onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                    onOpenPost = { id -> navController.navigate(Routes.profilePosts(id)) },
+                )
+            }
+
+            composable(
+                Routes.PROFILE_POSTS,
+                arguments = listOf(navArgument("postId") { type = NavType.StringType }),
+            ) { backStackEntry ->
+                val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                ProfilePostsFeedScreen(
+                    initialPostId = postId,
+                    onBack = { navController.popBackStack() },
                 )
             }
 

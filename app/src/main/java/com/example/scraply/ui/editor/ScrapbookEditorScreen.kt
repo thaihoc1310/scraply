@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -52,12 +51,9 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -98,6 +94,10 @@ import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
+import com.example.scraply.ui.common.ScraplyDialog
+import com.example.scraply.ui.common.ScraplyDialogConfirmButton
+import com.example.scraply.ui.common.ScraplyDropdownMenu
+import com.example.scraply.ui.common.ScraplyDropdownMenuItem
 import com.example.scraply.ui.common.StampImage
 import kotlinx.coroutines.launch
 import android.widget.Toast
@@ -203,21 +203,21 @@ fun ScrapbookEditorScreen(
                             contentDescription = "More options",
                             onClick = { topMenuOpen = true }
                         )
-                        DropdownMenu(
+                        ScraplyDropdownMenu(
                             expanded = topMenuOpen,
                             onDismissRequest = { topMenuOpen = false }
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("Add stamp") },
-                                leadingIcon = { Icon(Icons.Filled.PhotoLibrary, null) },
+                            ScraplyDropdownMenuItem(
+                                label = "Add stamp",
+                                icon = Icons.Filled.PhotoLibrary,
                                 onClick = { 
                                     topMenuOpen = false
                                     showStampPicker = PickerMode.AddStamp 
                                 }
                             )
-                            DropdownMenuItem(
-                                text = { Text("Share") },
-                                leadingIcon = { Icon(Icons.Filled.IosShare, null) },
+                            ScraplyDropdownMenuItem(
+                                label = "Share",
+                                icon = Icons.Filled.IosShare,
                                 onClick = { 
                                     topMenuOpen = false
                                     scope.launch {
@@ -237,9 +237,9 @@ fun ScrapbookEditorScreen(
                                 }
                             )
                             if (vm.canPublish) {
-                                DropdownMenuItem(
-                                    text = { Text("Publish to feed") },
-                                    leadingIcon = { Icon(Icons.Filled.Public, null) },
+                                ScraplyDropdownMenuItem(
+                                    label = "Publish to feed",
+                                    icon = Icons.Filled.Public,
                                     onClick = { 
                                         topMenuOpen = false
                                         scope.launch {
@@ -816,7 +816,7 @@ private fun AssetCategorySection(
     ) {
         Text(
             title,
-            style = MaterialTheme.typography.headlineMedium.copy(fontFamily = FontFamily.Serif),
+            style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.weight(1f))
@@ -991,12 +991,17 @@ private fun StampPickerDialog(
     onPick: (Stamp) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    ScraplyDialog(
+        title = "Pick a stamp",
         onDismissRequest = onDismiss,
-        title = { Text("Pick a stamp") },
-        text = {
+        maxWidth = 460.dp,
+        content = {
             if (stamps.isEmpty()) {
-                Text("You have no stamps yet.")
+                Text(
+                    "You have no stamps yet.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -1041,6 +1046,8 @@ private fun StampPickerDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        actions = {
+            ScraplyDialogConfirmButton(label = "Close", onClick = onDismiss)
+        },
     )
 }

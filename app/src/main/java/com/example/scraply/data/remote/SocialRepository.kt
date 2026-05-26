@@ -28,6 +28,7 @@ data class FeedPost(
     val description: String? = null,
     val likedByMe: Boolean = false,
     val savedByMe: Boolean = false,
+    val previewComments: List<FeedComment> = emptyList(),
 )
 
 data class FeedComment(
@@ -37,6 +38,14 @@ data class FeedComment(
     val avatarUrl: String?,
     val text: String,
     val createdAt: Long,
+)
+
+data class FeedLikeUser(
+    val userId: String,
+    val username: String?,
+    val displayName: String?,
+    val avatarUrl: String?,
+    val likedAt: Long,
 )
 
 /**
@@ -142,6 +151,20 @@ class SocialRepository(
         postsRef.document(postId).delete().await()
     }
 
+    suspend fun updatePostDetails(postId: String, uid: String, title: String, description: String) {
+        val doc = postsRef.document(postId).get().await()
+        require(doc.getString("userId") == uid) { "You can only edit your own posts." }
+
+        val cleanTitle = title.trim().take(1000)
+        val cleanDescription = description.trim().take(1000)
+        val patch = mutableMapOf<String, Any>(
+            "updatedAt" to FieldValue.serverTimestamp(),
+        )
+        patch["title"] = if (cleanTitle.isBlank()) FieldValue.delete() else cleanTitle
+        patch["description"] = if (cleanDescription.isBlank()) FieldValue.delete() else cleanDescription
+        postsRef.document(postId).update(patch).await()
+    }
+
     /**
      * Returns a real-time feed. Sorted by createdAt desc; followed-users-first ordering is applied
      * client-side by pulling the follow set and reshuffling.
@@ -199,6 +222,21 @@ class SocialRepository(
         }
     }
 
+    suspend fun hydrateLikeUsers(likes: List<FeedLikeUser>): List<FeedLikeUser> {
+        val uids = likes.mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }.distinct()
+        val userDocs = uids.mapNotNull { uid ->
+            runCatching { usersRef.document(uid).get().await() }.getOrNull()
+        }.associateBy { it.id }
+        return likes.map { like ->
+            val u = userDocs[like.userId]
+            like.copy(
+                username = u?.getString("username"),
+                displayName = u?.getString("displayName"),
+                avatarUrl = u?.getString("avatarUrl"),
+            )
+        }
+    }
+
     suspend fun fetchLatestComments(postIds: List<String>, limit: Long = 2): Map<String, List<FeedComment>> = coroutineScope {
         if (postIds.isEmpty()) return@coroutineScope emptyMap()
         postIds.distinct().map { postId ->
@@ -222,6 +260,13 @@ class SocialRepository(
                 postId to hydrated.reversed()
             }
         }.awaitAll().toMap()
+    }
+
+    suspend fun hydratePostCommentPreviews(posts: List<FeedPost>, limit: Long = 2): List<FeedPost> {
+        val previews = fetchLatestComments(posts.map { it.id }, limit)
+        return posts.map { post ->
+            post.copy(previewComments = previews[post.id].orEmpty())
+        }
     }
 
     suspend fun hydratePostEngagement(currentUid: String, posts: List<FeedPost>): List<FeedPost> = coroutineScope {
@@ -255,7 +300,12 @@ class SocialRepository(
             postDoc.update("likeCount", FieldValue.increment(-1)).await()
             false
         } else {
-            likeDoc.set(mapOf("createdAt" to FieldValue.serverTimestamp())).await()
+            likeDoc.set(
+                mapOf(
+                    "userId" to uid,
+                    "createdAt" to FieldValue.serverTimestamp(),
+                )
+            ).await()
             postDoc.update("likeCount", FieldValue.increment(1)).await()
             runCatching {
                 val (ownerUid, postImage) = postSummary(postId)
@@ -276,6 +326,26 @@ class SocialRepository(
             }
             true
         }
+    }
+
+    fun observeLikes(postId: String): Flow<List<FeedLikeUser>> = callbackFlow {
+        val reg = postsRef.document(postId).collection("likes")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snap, err ->
+                if (err != null || snap == null) return@addSnapshotListener
+                trySend(
+                    snap.documents.map { d ->
+                        FeedLikeUser(
+                            userId = d.getString("userId") ?: d.id,
+                            username = null,
+                            displayName = null,
+                            avatarUrl = null,
+                            likedAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                        )
+                    }
+                )
+            }
+        awaitClose { reg.remove() }
     }
 
     suspend fun toggleSave(postId: String, uid: String): Boolean {

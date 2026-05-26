@@ -10,6 +10,7 @@ object Routes {
     const val NOTIFICATIONS = "notifications"
     const val COMMENTS = "feed/comments/{postId}"
     const val FEED_POST = "feed/post/{postId}?showComments={showComments}"
+    const val PROFILE_POSTS = "profile/posts/{postId}"
 
     const val STAMP_CAMERA = "stamp/camera"
     const val STAMP_CROP = "stamp/crop/{sourceUri}"
@@ -29,6 +30,7 @@ object Routes {
     fun comments(postId: String) = "feed/comments/${android.net.Uri.encode(postId)}"
     fun feedPost(postId: String, showComments: Boolean = false) =
         "feed/post/${android.net.Uri.encode(postId)}?showComments=$showComments"
+    fun profilePosts(postId: String) = "profile/posts/${android.net.Uri.encode(postId)}"
 }
 
 enum class BottomTab(val route: String, val label: String) {

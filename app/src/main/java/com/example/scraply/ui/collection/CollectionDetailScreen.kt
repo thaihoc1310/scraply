@@ -19,10 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -34,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
+import com.example.scraply.ui.common.ScraplyDialog
+import com.example.scraply.ui.common.ScraplyDialogConfirmButton
 import com.example.scraply.ui.common.StampImage
 
 private const val StampAspectRatio = 147f / 190f
@@ -165,12 +165,16 @@ private fun AddStampsDialog(
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
+    ScraplyDialog(
+        title = "Add stamps",
         onDismissRequest = onDismiss,
-        title = { Text("Add stamps") },
-        text = {
+        content = {
             if (candidates.isEmpty()) {
-                Text("Nothing left to add here.")
+                Text(
+                    "Nothing left to add here.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             } else {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
@@ -194,6 +198,8 @@ private fun AddStampsDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+        actions = {
+            ScraplyDialogConfirmButton(label = "Done", onClick = onDismiss)
+        },
     )
 }
