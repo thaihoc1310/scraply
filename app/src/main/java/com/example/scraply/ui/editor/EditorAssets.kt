@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.IntrinsicSize
 import coil.compose.AsyncImage
@@ -195,6 +196,7 @@ fun CanvasElementView(
     stamps: List<Stamp>,
     modifier: Modifier = Modifier,
     isEditing: Boolean = false,
+    onStartTextEdit: () -> Unit = {},
     onTextChange: (String) -> Unit = {},
 ) {
     when (element.type) {
@@ -318,40 +320,64 @@ fun CanvasElementView(
                 color = Color(element.color.toInt().toLong().let { if (it == 0L) 0xFF1F1B18 else it }),
             )
 
-            if (isEditing) {
-                val focusRequester = remember { FocusRequester() }
-                val textFieldValue = remember {
-                    androidx.compose.runtime.mutableStateOf(
-                        androidx.compose.ui.text.input.TextFieldValue(
-                            text = element.text,
-                            selection = androidx.compose.ui.text.TextRange(element.text.length)
-                        )
-                    )
-                }
-                
-                androidx.compose.foundation.text.BasicTextField(
-                    value = textFieldValue.value,
-                    onValueChange = {
-                        textFieldValue.value = it
-                        onTextChange(it.text)
-                    },
-                    textStyle = textStyle,
-                    modifier = modifier
-                        .padding(4.dp)
-                        .defaultMinSize(minWidth = 20.dp)
-                        .width(IntrinsicSize.Min)
-                        .focusRequester(focusRequester),
-                )
-                androidx.compose.runtime.LaunchedEffect(Unit) {
-                    focusRequester.requestFocus()
-                }
-            } else {
-                Text(
-                    text = element.text.ifBlank { "Double-tap to edit" },
-                    style = textStyle,
-                    modifier = modifier.padding(4.dp),
+            val focusRequester = remember { FocusRequester() }
+            val textFieldValue = remember(element.id) {
+                androidx.compose.runtime.mutableStateOf(
+                    androidx.compose.ui.text.input.TextFieldValue(
+                        text = element.text,
+                        selection = androidx.compose.ui.text.TextRange(element.text.length),
+                    ),
                 )
             }
+
+            androidx.compose.runtime.LaunchedEffect(element.text) {
+                if (element.text != textFieldValue.value.text) {
+                    val selectionStart = textFieldValue.value.selection.start.coerceIn(0, element.text.length)
+                    val selectionEnd = textFieldValue.value.selection.end.coerceIn(0, element.text.length)
+                    textFieldValue.value = textFieldValue.value.copy(
+                        text = element.text,
+                        selection = androidx.compose.ui.text.TextRange(selectionStart, selectionEnd),
+                    )
+                }
+            }
+
+            androidx.compose.runtime.LaunchedEffect(isEditing) {
+                if (isEditing) {
+                    focusRequester.requestFocus()
+                }
+            }
+
+            androidx.compose.foundation.text.BasicTextField(
+                value = textFieldValue.value,
+                onValueChange = {
+                    textFieldValue.value = it
+                    if (it.text != element.text) {
+                        onTextChange(it.text)
+                    }
+                },
+                textStyle = textStyle,
+                modifier = modifier
+                    .padding(4.dp)
+                    .defaultMinSize(minWidth = 20.dp)
+                    .width(IntrinsicSize.Min)
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            onStartTextEdit()
+                        }
+                    },
+                decorationBox = { innerTextField ->
+                    Box {
+                        if (textFieldValue.value.text.isBlank() && !isEditing) {
+                            Text(
+                                text = "Tap to edit",
+                                style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
+                            )
+                        }
+                        innerTextField()
+                    }
+                },
+            )
         }
     }
 }

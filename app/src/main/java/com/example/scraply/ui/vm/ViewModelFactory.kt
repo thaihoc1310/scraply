@@ -3,6 +3,8 @@ package com.example.scraply.ui.vm
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.scraply.ScraplyApp
 import com.example.scraply.data.ScraplyContainer
@@ -79,7 +81,14 @@ class ScraplyViewModelFactory(
 }
 
 @Composable
-inline fun <reified T : ViewModel> scraplyViewModel(): T {
+inline fun <reified T : ViewModel> scraplyViewModel(
+    viewModelStoreOwner: ViewModelStoreOwner = checkNotNull(LocalViewModelStoreOwner.current) {
+        "No ViewModelStoreOwner was provided."
+    },
+): T {
     val factory = ScraplyViewModelFactory(ScraplyApp.instance.container)
-    return viewModel(factory = factory)
+    return viewModel(
+        viewModelStoreOwner = viewModelStoreOwner,
+        factory = factory,
+    )
 }

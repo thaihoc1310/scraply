@@ -1,5 +1,6 @@
 package com.example.scraply.ui.editor
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
@@ -88,6 +90,9 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.scraply.data.model.CanvasElement
@@ -99,7 +104,10 @@ import com.example.scraply.ui.common.ScraplyDialogConfirmButton
 import com.example.scraply.ui.common.ScraplyDropdownMenu
 import com.example.scraply.ui.common.ScraplyDropdownMenuItem
 import com.example.scraply.ui.common.StampImage
+import com.example.scraply.util.ImageUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,6 +118,7 @@ fun ScrapbookEditorScreen(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
 
     val current by vm.current.collectAsState()
@@ -142,10 +151,30 @@ fun ScrapbookEditorScreen(
     var showPalette by remember { mutableStateOf(false) }
     var showStampPicker by remember { mutableStateOf<PickerMode?>(null) }
     var editingText by remember { mutableStateOf<String?>(null) }
+    var textSheetElementId by remember { mutableStateOf<String?>(null) }
     var showPublishPreview by remember { mutableStateOf<Bitmap?>(null) }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val graphicsLayer = rememberGraphicsLayer()
+
+    fun endInlineTextEdit() {
+        if (editingText != null) {
+            vm.onTransformEnd()
+        }
+        editingText = null
+        focusManager.clearFocus()
+    }
+
+    fun beginInlineTextEdit(id: String) {
+        vm.selectElement(id)
+        if (editingText != id) {
+            if (editingText != null) {
+                vm.onTransformEnd()
+            }
+            vm.onTransformStart()
+            editingText = id
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -168,13 +197,17 @@ fun ScrapbookEditorScreen(
                         onBack()
                     },
                 )
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
                 Text(
-                    current?.name?.let { if (it.length > 14) it.take(12) + "…" else it } ?: "",
+                    text = current?.name.orEmpty(),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
-                Spacer(Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
                 Row(
                     modifier = Modifier
                         .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(28.dp))
@@ -188,13 +221,12 @@ fun ScrapbookEditorScreen(
                     )
                     
                     val isTextSelected = canvas.elements.find { it.id == selectedId }?.type == CanvasElementType.TEXT
-                    if (isTextSelected) {
-                        CircleIconButton(
-                            icon = Icons.Filled.Palette,
-                            contentDescription = "Palette",
-                            onClick = { showPalette = true },
-                        )
-                    }
+                    CircleIconButton(
+                        icon = Icons.Filled.Palette,
+                        contentDescription = "Palette",
+                        onClick = { showPalette = true },
+                        enabled = isTextSelected,
+                    )
 
                     Box {
                         var topMenuOpen by remember { mutableStateOf(false) }
@@ -236,6 +268,26 @@ fun ScrapbookEditorScreen(
                                     }
                                 }
                             )
+                            ScraplyDropdownMenuItem(
+                                label = "Save to photos",
+                                icon = Icons.Filled.Download,
+                                onClick = {
+                                    topMenuOpen = false
+                                    scope.launch {
+                                        val bmp: Bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                        val saved = saveCanvasToPhotos(
+                                            context = context,
+                                            bitmap = bmp,
+                                            projectName = current?.name,
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            if (saved) "Saved to Pictures/Scraply" else "Could not save image",
+                                            Toast.LENGTH_SHORT,
+                                        ).show()
+                                    }
+                                },
+                            )
                             if (vm.canPublish) {
                                 ScraplyDropdownMenuItem(
                                     label = "Publish to feed",
@@ -267,12 +319,9 @@ fun ScrapbookEditorScreen(
                         drawLayer(graphicsLayer)
                     }
                     .pointerInput(Unit) {
-                        detectTapGestures(onTap = { 
+                        detectTapGestures(onTap = {
                             vm.selectElement(null)
-                            if (editingText != null) {
-                                vm.onTransformEnd()
-                            }
-                            editingText = null
+                            endInlineTextEdit()
                         })
                     },
             ) {
@@ -285,13 +334,16 @@ fun ScrapbookEditorScreen(
                         selected = element.id == selectedId,
                         canvasSize = canvasSize,
                         isEditing = element.id == editingText,
-                        onSelect = { 
+                        onSelect = {
                             vm.selectElement(element.id)
                             if (editingText != null && editingText != element.id) {
-                                vm.onTransformEnd()
-                                editingText = null
+                                endInlineTextEdit()
+                            }
+                            if (element.type != CanvasElementType.TEXT) {
+                                focusManager.clearFocus()
                             }
                         },
+                        onBeginTextEdit = { beginInlineTextEdit(element.id) },
                         onUpdate = { updated -> vm.updateElement(element.id) { updated } },
                         onTransformStart = { vm.onTransformStart() },
                         onTransformEnd = { vm.onTransformEnd() },
@@ -341,8 +393,9 @@ fun ScrapbookEditorScreen(
                         OutlinedButton(
                             onClick = {
                                 if (sel.type == CanvasElementType.TEXT) {
-                                    vm.onTransformStart()
-                                    editingText = id
+                                    endInlineTextEdit()
+                                    textSheetElementId = id
+                                    showAssets = true
                                 }
                             },
                             shape = RoundedCornerShape(14.dp),
@@ -475,8 +528,13 @@ fun ScrapbookEditorScreen(
     }
 
     if (showAssets) {
+        val textElementForSheet = textSheetElementId?.let { id ->
+            canvas.elements.firstOrNull { it.id == id && it.type == CanvasElementType.TEXT }
+        }
         EditAssetsSheet(
             background = background,
+            initialTab = if (textElementForSheet != null) AssetsTab.Text else AssetsTab.Backgrounds,
+            editingTextElement = textElementForSheet,
             onBackground = { vm.setBackground(it) },
             onPickAsset = { option ->
                 if (option.type == CanvasElementType.POLAROID) {
@@ -492,7 +550,15 @@ fun ScrapbookEditorScreen(
                     vm.updateElement(id) { it.copy(font = font) }
                 }
             },
-            onDismiss = { showAssets = false },
+            onUpdateText = { text, font ->
+                textElementForSheet?.id?.let { id ->
+                    vm.updateElement(id) { it.copy(text = text, font = font) }
+                }
+            },
+            onDismiss = {
+                showAssets = false
+                textSheetElementId = null
+            },
         )
     }
 
@@ -532,6 +598,33 @@ fun ScrapbookEditorScreen(
 
 private enum class PickerMode { AddStamp, Polaroid }
 
+private suspend fun saveCanvasToPhotos(
+    context: Context,
+    bitmap: Bitmap,
+    projectName: String?,
+): Boolean = withContext(Dispatchers.IO) {
+    runCatching {
+        ImageUtils.saveToGallery(
+            context = context,
+            bitmap = bitmap,
+            displayName = scrapbookGalleryName(projectName),
+        ) != null
+    }.getOrDefault(false)
+}
+
+private fun scrapbookGalleryName(projectName: String?): String {
+    val fallback = "scraply_${System.currentTimeMillis()}"
+    val cleaned = projectName
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?.replace(Regex("""[\\/:*?"<>|]+"""), "_")
+        ?.take(60)
+        ?.trim(' ', '_')
+        ?.takeIf { it.isNotBlank() }
+        ?: fallback
+    return if (cleaned.startsWith("scraply_", ignoreCase = true)) cleaned else "scraply_$cleaned"
+}
+
 @Composable
 private fun CanvasElementOnBoard(
     element: CanvasElement,
@@ -540,6 +633,7 @@ private fun CanvasElementOnBoard(
     canvasSize: IntSize,
     isEditing: Boolean,
     onSelect: () -> Unit,
+    onBeginTextEdit: () -> Unit,
     onUpdate: (CanvasElement) -> Unit,
     onTransformStart: () -> Unit,
     onTransformEnd: () -> Unit,
@@ -563,9 +657,15 @@ private fun CanvasElementOnBoard(
                 rotationZ = element.rotation
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
             }
-            .pointerInput(element.id) {
-                detectTapGestures(onTap = { onSelect() })
-            }
+            .then(
+                if (element.type == CanvasElementType.TEXT) {
+                    Modifier
+                } else {
+                    Modifier.pointerInput(element.id) {
+                        detectTapGestures(onTap = { onSelect() })
+                    }
+                },
+            )
             .pointerInput(element.id) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -616,6 +716,7 @@ private fun CanvasElementOnBoard(
             element = element, 
             stamps = stamps,
             isEditing = isEditing,
+            onStartTextEdit = onBeginTextEdit,
             onTextChange = onTextChange,
         )
     }
@@ -625,16 +726,22 @@ private fun CanvasElementOnBoard(
 @Composable
 private fun EditAssetsSheet(
     background: String,
+    initialTab: AssetsTab,
+    editingTextElement: CanvasElement?,
     onBackground: (String) -> Unit,
     onPickAsset: (AssetOption) -> Unit,
     onAddText: (String, String) -> Unit,
+    onUpdateText: (String, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    var tab by remember { mutableStateOf(AssetsTab.Backgrounds) }
-    var newText by remember { mutableStateOf("") }
-    var font by remember { mutableStateOf(FontPresets.first().first) }
+    val isEditingExistingText = editingTextElement != null
+    var tab by remember(editingTextElement?.id, initialTab) { mutableStateOf(initialTab) }
+    var newText by remember(editingTextElement?.id) { mutableStateOf(editingTextElement?.text.orEmpty()) }
+    var font by remember(editingTextElement?.id) {
+        mutableStateOf(editingTextElement?.font ?: FontPresets.first().first)
+    }
 
     fun dismissWithAction(action: () -> Unit) {
         scope.launch {
@@ -695,14 +802,29 @@ private fun EditAssetsSheet(
                 AssetsTab.Assets -> AssetCategoriesList(onPick = { dismissWithAction { onPickAsset(it) } })
                 AssetsTab.Text -> TextTab(
                     text = newText,
-                    onTextChange = { newText = it },
+                    onTextChange = {
+                        newText = it
+                        if (isEditingExistingText) {
+                            onUpdateText(it, font)
+                        }
+                    },
                     font = font,
-                    onFontChange = { font = it },
+                    onFontChange = {
+                        font = it
+                        if (isEditingExistingText) {
+                            onUpdateText(newText, it)
+                        }
+                    },
+                    actionLabel = if (isEditingExistingText) "Done" else "Add",
                     onAdd = {
-                        val textToAdd = newText.ifBlank { "New text" }
-                        val fontToAdd = font
-                        dismissWithAction { onAddText(textToAdd, fontToAdd) }
-                        newText = ""
+                        if (isEditingExistingText) {
+                            dismissWithAction { onUpdateText(newText, font) }
+                        } else {
+                            val textToAdd = newText.ifBlank { "New text" }
+                            val fontToAdd = font
+                            dismissWithAction { onAddText(textToAdd, fontToAdd) }
+                            newText = ""
+                        }
                     },
                 )
             }
@@ -889,6 +1011,7 @@ private fun TextTab(
     onTextChange: (String) -> Unit,
     font: String,
     onFontChange: (String) -> Unit,
+    actionLabel: String,
     onAdd: () -> Unit,
 ) {
     Column {
@@ -911,7 +1034,7 @@ private fun TextTab(
                 modifier = Modifier.height(56.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
-            ) { Text("Add") }
+            ) { Text(actionLabel) }
         }
         
         Spacer(Modifier.height(16.dp))

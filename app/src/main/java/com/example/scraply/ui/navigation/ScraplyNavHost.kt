@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -162,7 +163,10 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
             ) { backStackEntry ->
                 val id = backStackEntry.arguments?.getString("projectId").orEmpty()
-                val vm: EditorViewModel = scraplyViewModel()
+                val editorListEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.EDITOR_LIST)
+                }
+                val vm: EditorViewModel = scraplyViewModel(viewModelStoreOwner = editorListEntry)
                 ScrapbookEditorScreen(
                     vm = vm,
                     projectId = id,

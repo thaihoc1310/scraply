@@ -55,6 +55,9 @@ class EditorViewModel(
     private val _projects = MutableStateFlow<List<ProjectCard>>(emptyList())
     val projects: StateFlow<List<ProjectCard>> = _projects.asStateFlow()
 
+    private val _projectFocusRequest = MutableStateFlow<String?>(null)
+    val projectFocusRequest: StateFlow<String?> = _projectFocusRequest.asStateFlow()
+
     private val _current = MutableStateFlow<ScrapbookProject?>(null)
     val current: StateFlow<ScrapbookProject?> = _current.asStateFlow()
 
@@ -98,23 +101,40 @@ class EditorViewModel(
     }
 
     fun createProject(name: String) {
-        viewModelScope.launch { projectRepository.create(name) }
+        viewModelScope.launch {
+            val created = projectRepository.create(name)
+            _projectFocusRequest.value = created.id
+        }
     }
     fun renameProject(id: String, name: String) {
-        viewModelScope.launch { projectRepository.rename(id, name) }
+        viewModelScope.launch {
+            if (projectRepository.rename(id, name)) {
+                _projectFocusRequest.value = id
+            }
+        }
     }
     fun deleteProject(id: String) {
         viewModelScope.launch { projectRepository.delete(id) }
     }
 
+    fun consumeProjectFocusRequest(id: String) {
+        if (_projectFocusRequest.value == id) {
+            _projectFocusRequest.value = null
+        }
+    }
+
     fun saveCurrent() {
         val p = _current.value ?: return
+        val backgroundType = _background.value
+        val canvasJson = CanvasState.toJson(_canvas.value)
         viewModelScope.launch {
-            projectRepository.updateCanvas(
+            if (projectRepository.updateCanvas(
                 id = p.id,
-                backgroundType = _background.value,
-                canvasJson = CanvasState.toJson(_canvas.value),
-            )
+                backgroundType = backgroundType,
+                canvasJson = canvasJson,
+            )) {
+                _projectFocusRequest.value = p.id
+            }
         }
     }
 
