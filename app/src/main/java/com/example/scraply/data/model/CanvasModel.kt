@@ -20,6 +20,7 @@ data class CanvasElement(
     val scale: Float = 1f,
     val rotation: Float = 0f,
     val zIndex: Int = 0,
+    val isFlipped: Boolean = false,
 )
 
 @Serializable

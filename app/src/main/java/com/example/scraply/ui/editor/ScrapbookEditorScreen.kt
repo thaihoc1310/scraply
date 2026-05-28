@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.IosShare
@@ -252,7 +253,7 @@ fun ScrapbookEditorScreen(
                         contentDescription = "Backgrounds",
                         onClick = { showBackgrounds = true },
                     )
-                    Spacer(Modifier.width(4.dp))
+                    Spacer(Modifier.width(10.dp))
 
                     Box {
                         var topMenuOpen by remember { mutableStateOf(false) }
@@ -420,6 +421,18 @@ fun ScrapbookEditorScreen(
                                 Icon(Icons.Filled.Brush, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
                                 Text("Style")
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = {
+                                    vm.updateElement(id) { it.copy(isFlipped = !it.isFlipped) }
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                            ) {
+                                Icon(Icons.Filled.Flip, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Flip")
                             }
                         }
                         OutlinedButton(
@@ -696,7 +709,7 @@ private fun CanvasElementOnBoard(
             .graphicsLayer {
                 translationX = element.x * w - size.width / 2f
                 translationY = element.y * h - size.height / 2f
-                scaleX = element.scale
+                scaleX = if (element.isFlipped) -element.scale else element.scale
                 scaleY = element.scale
                 rotationZ = element.rotation
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
