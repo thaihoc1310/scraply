@@ -32,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -46,13 +47,15 @@ fun CircleIconButton(
     modifier: Modifier = Modifier,
     background: Color = MaterialTheme.colorScheme.surface,
     tint: Color = MaterialTheme.colorScheme.onSurface,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = modifier
+            .alpha(if (enabled) 1f else 0.38f)
             .size(44.dp)
             .shadow(4.dp, CircleShape)
             .background(background, CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription, tint = tint, modifier = Modifier.size(22.dp))

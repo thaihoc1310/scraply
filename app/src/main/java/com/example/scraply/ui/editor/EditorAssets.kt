@@ -132,7 +132,7 @@ val FontPresets = listOf(
 )
 
 /** Maps font key to its FontFamily */
-private val fontFamilyMap = mapOf(
+internal val fontFamilyMap = mapOf(
     "classic_serif" to FontFamily.Serif,
     "fz_kingshare" to FontFamily.Cursive,
     "dancing_script" to FontFamily(Font(R.font.dancingscript_variablefont_wght)),
@@ -195,6 +195,7 @@ fun CanvasElementView(
     stamps: List<Stamp>,
     modifier: Modifier = Modifier,
     isEditing: Boolean = false,
+    onStartTextEdit: () -> Unit = {},
     onTextChange: (String) -> Unit = {},
 ) {
     when (element.type) {
@@ -320,20 +321,37 @@ fun CanvasElementView(
 
             if (isEditing) {
                 val focusRequester = remember { FocusRequester() }
-                val textFieldValue = remember {
+                val textFieldValue = remember(element.id) {
                     androidx.compose.runtime.mutableStateOf(
                         androidx.compose.ui.text.input.TextFieldValue(
                             text = element.text,
-                            selection = androidx.compose.ui.text.TextRange(element.text.length)
-                        )
+                            selection = androidx.compose.ui.text.TextRange(0, element.text.length),
+                        ),
                     )
                 }
-                
+
+                androidx.compose.runtime.LaunchedEffect(element.text) {
+                    if (element.text != textFieldValue.value.text) {
+                        val selStart = textFieldValue.value.selection.start.coerceIn(0, element.text.length)
+                        val selEnd = textFieldValue.value.selection.end.coerceIn(0, element.text.length)
+                        textFieldValue.value = textFieldValue.value.copy(
+                            text = element.text,
+                            selection = androidx.compose.ui.text.TextRange(selStart, selEnd),
+                        )
+                    }
+                }
+
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
+
                 androidx.compose.foundation.text.BasicTextField(
                     value = textFieldValue.value,
                     onValueChange = {
                         textFieldValue.value = it
-                        onTextChange(it.text)
+                        if (it.text != element.text) {
+                            onTextChange(it.text)
+                        }
                     },
                     textStyle = textStyle,
                     modifier = modifier
@@ -341,14 +359,25 @@ fun CanvasElementView(
                         .defaultMinSize(minWidth = 20.dp)
                         .width(IntrinsicSize.Min)
                         .focusRequester(focusRequester),
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (textFieldValue.value.text.isBlank()) {
+                                Text(
+                                    text = "Tap to edit",
+                                    style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
+                                )
+                            }
+                            innerTextField()
+                        }
+                    },
                 )
-                androidx.compose.runtime.LaunchedEffect(Unit) {
-                    focusRequester.requestFocus()
-                }
             } else {
+                // Read-only text display - no keyboard, no focus
                 Text(
-                    text = element.text.ifBlank { "Double-tap to edit" },
-                    style = textStyle,
+                    text = element.text.ifBlank { "Tap to edit" },
+                    style = textStyle.let {
+                        if (element.text.isBlank()) it.copy(color = it.color.copy(alpha = 0.55f)) else it
+                    },
                     modifier = modifier.padding(4.dp),
                 )
             }

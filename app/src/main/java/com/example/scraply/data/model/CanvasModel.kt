@@ -20,11 +20,13 @@ data class CanvasElement(
     val scale: Float = 1f,
     val rotation: Float = 0f,
     val zIndex: Int = 0,
+    val isFlipped: Boolean = false,
 )
 
 @Serializable
 data class CanvasState(
     val elements: List<CanvasElement> = emptyList(),
+    val aspectRatio: Float = 0.5625f,
 ) {
     companion object {
         private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }

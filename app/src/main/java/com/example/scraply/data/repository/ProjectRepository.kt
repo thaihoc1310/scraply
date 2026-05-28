@@ -38,15 +38,18 @@ class ProjectRepository(
         return entity.toDomain()
     }
 
-    suspend fun rename(id: String, name: String) {
-        val existing = projectDao.getById(id) ?: return
+    suspend fun rename(id: String, name: String): Boolean {
+        val existing = projectDao.getById(id) ?: return false
+        if (existing.name == name) return false
         val updated = existing.copy(name = name, updatedAt = System.currentTimeMillis())
         projectDao.update(updated)
         pushAsync(updated)
+        return true
     }
 
-    suspend fun updateCanvas(id: String, backgroundType: String, canvasJson: String) {
-        val existing = projectDao.getById(id) ?: return
+    suspend fun updateCanvas(id: String, backgroundType: String, canvasJson: String): Boolean {
+        val existing = projectDao.getById(id) ?: return false
+        if (existing.backgroundType == backgroundType && existing.canvasJson == canvasJson) return false
         val updated = existing.copy(
             backgroundType = backgroundType,
             canvasJson = canvasJson,
@@ -54,6 +57,7 @@ class ProjectRepository(
         )
         projectDao.update(updated)
         pushAsync(updated)
+        return true
     }
 
     suspend fun delete(id: String) {
