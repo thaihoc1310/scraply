@@ -30,7 +30,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.IntrinsicSize
 import coil.compose.AsyncImage
@@ -133,7 +132,7 @@ val FontPresets = listOf(
 )
 
 /** Maps font key to its FontFamily */
-private val fontFamilyMap = mapOf(
+internal val fontFamilyMap = mapOf(
     "classic_serif" to FontFamily.Serif,
     "fz_kingshare" to FontFamily.Cursive,
     "dancing_script" to FontFamily(Font(R.font.dancingscript_variablefont_wght)),
@@ -320,64 +319,68 @@ fun CanvasElementView(
                 color = Color(element.color.toInt().toLong().let { if (it == 0L) 0xFF1F1B18 else it }),
             )
 
-            val focusRequester = remember { FocusRequester() }
-            val textFieldValue = remember(element.id) {
-                androidx.compose.runtime.mutableStateOf(
-                    androidx.compose.ui.text.input.TextFieldValue(
-                        text = element.text,
-                        selection = androidx.compose.ui.text.TextRange(element.text.length),
-                    ),
-                )
-            }
-
-            androidx.compose.runtime.LaunchedEffect(element.text) {
-                if (element.text != textFieldValue.value.text) {
-                    val selectionStart = textFieldValue.value.selection.start.coerceIn(0, element.text.length)
-                    val selectionEnd = textFieldValue.value.selection.end.coerceIn(0, element.text.length)
-                    textFieldValue.value = textFieldValue.value.copy(
-                        text = element.text,
-                        selection = androidx.compose.ui.text.TextRange(selectionStart, selectionEnd),
+            if (isEditing) {
+                val focusRequester = remember { FocusRequester() }
+                val textFieldValue = remember(element.id) {
+                    androidx.compose.runtime.mutableStateOf(
+                        androidx.compose.ui.text.input.TextFieldValue(
+                            text = element.text,
+                            selection = androidx.compose.ui.text.TextRange(0, element.text.length),
+                        ),
                     )
                 }
-            }
 
-            androidx.compose.runtime.LaunchedEffect(isEditing) {
-                if (isEditing) {
+                androidx.compose.runtime.LaunchedEffect(element.text) {
+                    if (element.text != textFieldValue.value.text) {
+                        val selStart = textFieldValue.value.selection.start.coerceIn(0, element.text.length)
+                        val selEnd = textFieldValue.value.selection.end.coerceIn(0, element.text.length)
+                        textFieldValue.value = textFieldValue.value.copy(
+                            text = element.text,
+                            selection = androidx.compose.ui.text.TextRange(selStart, selEnd),
+                        )
+                    }
+                }
+
+                androidx.compose.runtime.LaunchedEffect(Unit) {
                     focusRequester.requestFocus()
                 }
-            }
 
-            androidx.compose.foundation.text.BasicTextField(
-                value = textFieldValue.value,
-                onValueChange = {
-                    textFieldValue.value = it
-                    if (it.text != element.text) {
-                        onTextChange(it.text)
-                    }
-                },
-                textStyle = textStyle,
-                modifier = modifier
-                    .padding(4.dp)
-                    .defaultMinSize(minWidth = 20.dp)
-                    .width(IntrinsicSize.Min)
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
-                            onStartTextEdit()
+                androidx.compose.foundation.text.BasicTextField(
+                    value = textFieldValue.value,
+                    onValueChange = {
+                        textFieldValue.value = it
+                        if (it.text != element.text) {
+                            onTextChange(it.text)
                         }
                     },
-                decorationBox = { innerTextField ->
-                    Box {
-                        if (textFieldValue.value.text.isBlank() && !isEditing) {
-                            Text(
-                                text = "Tap to edit",
-                                style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
-                            )
+                    textStyle = textStyle,
+                    modifier = modifier
+                        .padding(4.dp)
+                        .defaultMinSize(minWidth = 20.dp)
+                        .width(IntrinsicSize.Min)
+                        .focusRequester(focusRequester),
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (textFieldValue.value.text.isBlank()) {
+                                Text(
+                                    text = "Tap to edit",
+                                    style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
+                                )
+                            }
+                            innerTextField()
                         }
-                        innerTextField()
-                    }
-                },
-            )
+                    },
+                )
+            } else {
+                // Read-only text display - no keyboard, no focus
+                Text(
+                    text = element.text.ifBlank { "Tap to edit" },
+                    style = textStyle.let {
+                        if (element.text.isBlank()) it.copy(color = it.color.copy(alpha = 0.55f)) else it
+                    },
+                    modifier = modifier.padding(4.dp),
+                )
+            }
         }
     }
 }

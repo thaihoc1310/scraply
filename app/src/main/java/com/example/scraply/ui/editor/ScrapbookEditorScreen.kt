@@ -39,7 +39,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
@@ -48,25 +53,43 @@ import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SheetState
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.ScrollState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -87,7 +110,10 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -147,12 +173,19 @@ fun ScrapbookEditorScreen(
         onDispose { vm.saveCurrent() }
     }
 
-    var showAssets by remember { mutableStateOf(false) }
-    var showPalette by remember { mutableStateOf(false) }
+    var showBackgrounds by remember { mutableStateOf(false) }
+    var showAssetsSheet by remember { mutableStateOf(false) }
+    var showTextStyle by remember { mutableStateOf(false) }
+    var textStyleElementId by remember { mutableStateOf<String?>(null) }
     var showStampPicker by remember { mutableStateOf<PickerMode?>(null) }
     var editingText by remember { mutableStateOf<String?>(null) }
-    var textSheetElementId by remember { mutableStateOf<String?>(null) }
     var showPublishPreview by remember { mutableStateOf<Bitmap?>(null) }
+    var fabExpanded by remember { mutableStateOf(false) }
+
+    // Collapse FAB when an element is selected
+    LaunchedEffect(selectedId) {
+        if (selectedId != null) fabExpanded = false
+    }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val graphicsLayer = rememberGraphicsLayer()
@@ -215,18 +248,11 @@ fun ScrapbookEditorScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircleIconButton(
-                        icon = Icons.Filled.Tune,
-                        contentDescription = "Edit assets",
-                        onClick = { showAssets = true },
+                        icon = Icons.Filled.Wallpaper,
+                        contentDescription = "Backgrounds",
+                        onClick = { showBackgrounds = true },
                     )
-                    
-                    val isTextSelected = canvas.elements.find { it.id == selectedId }?.type == CanvasElementType.TEXT
-                    CircleIconButton(
-                        icon = Icons.Filled.Palette,
-                        contentDescription = "Palette",
-                        onClick = { showPalette = true },
-                        enabled = isTextSelected,
-                    )
+                    Spacer(Modifier.width(4.dp))
 
                     Box {
                         var topMenuOpen by remember { mutableStateOf(false) }
@@ -239,14 +265,6 @@ fun ScrapbookEditorScreen(
                             expanded = topMenuOpen,
                             onDismissRequest = { topMenuOpen = false }
                         ) {
-                            ScraplyDropdownMenuItem(
-                                label = "Add stamp",
-                                icon = Icons.Filled.PhotoLibrary,
-                                onClick = { 
-                                    topMenuOpen = false
-                                    showStampPicker = PickerMode.AddStamp 
-                                }
-                            )
                             ScraplyDropdownMenuItem(
                                 label = "Share",
                                 icon = Icons.Filled.IosShare,
@@ -390,18 +408,20 @@ fun ScrapbookEditorScreen(
                         ) {
                             Icon(Icons.Filled.FlipToBack, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
-                        OutlinedButton(
-                            onClick = {
-                                if (sel.type == CanvasElementType.TEXT) {
-                                    endInlineTextEdit()
-                                    textSheetElementId = id
-                                    showAssets = true
-                                }
-                            },
-                            shape = RoundedCornerShape(14.dp),
-                            enabled = sel.type == CanvasElementType.TEXT,
-                            contentPadding = PaddingValues(horizontal = 12.dp),
-                        ) { Text("Edit") }
+                        if (sel.type == CanvasElementType.TEXT) {
+                            OutlinedButton(
+                                onClick = {
+                                    textStyleElementId = id
+                                    showTextStyle = true
+                                },
+                                shape = RoundedCornerShape(14.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                            ) {
+                                Icon(Icons.Filled.Brush, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("Style")
+                            }
+                        }
                         OutlinedButton(
                             onClick = { vm.deleteElement(id) },
                             shape = RoundedCornerShape(14.dp),
@@ -419,6 +439,32 @@ fun ScrapbookEditorScreen(
                     }
                 }
             }
+        }
+
+        // Expandable FAB — hide when an element is selected
+        if (selectedId == null) {
+            ExpandableFab(
+                expanded = fabExpanded,
+                onToggle = { fabExpanded = !fabExpanded },
+                onAddStamp = {
+                    fabExpanded = false
+                    showStampPicker = PickerMode.AddStamp
+                },
+                onAddAssets = {
+                    fabExpanded = false
+                    showAssetsSheet = true
+                },
+                onAddText = {
+                    fabExpanded = false
+                    val font = FontPresets.first().first
+                    vm.addElement(type = CanvasElementType.TEXT, assetKey = font, text = "Text")
+                    val id = vm.canvas.value.elements.lastOrNull()?.id
+                    if (id != null) {
+                        vm.updateElement(id) { it.copy(font = font) }
+                        beginInlineTextEdit(id)
+                    }
+                },
+            )
         }
 
         if (publishState is PublishState.Publishing) {
@@ -527,49 +573,47 @@ fun ScrapbookEditorScreen(
         }
     }
 
-    if (showAssets) {
-        val textElementForSheet = textSheetElementId?.let { id ->
-            canvas.elements.firstOrNull { it.id == id && it.type == CanvasElementType.TEXT }
-        }
-        EditAssetsSheet(
-            background = background,
-            initialTab = if (textElementForSheet != null) AssetsTab.Text else AssetsTab.Backgrounds,
-            editingTextElement = textElementForSheet,
-            onBackground = { vm.setBackground(it) },
+    if (showBackgrounds) {
+        BackgroundsSheet(
+            current = background,
+            onSelect = { vm.setBackground(it) },
+            onDismiss = { showBackgrounds = false },
+        )
+    }
+
+    if (showAssetsSheet) {
+        AssetsOnlySheet(
             onPickAsset = { option ->
                 if (option.type == CanvasElementType.POLAROID) {
                     showStampPicker = PickerMode.Polaroid
                 } else {
                     vm.addElement(type = option.type, assetKey = option.key)
                 }
+                showAssetsSheet = false
             },
-            onAddText = { initial, font ->
-                vm.addElement(type = CanvasElementType.TEXT, assetKey = font, text = initial)
-                val id = vm.canvas.value.elements.lastOrNull()?.id
-                if (id != null) {
-                    vm.updateElement(id) { it.copy(font = font) }
-                }
-            },
-            onUpdateText = { text, font ->
-                textElementForSheet?.id?.let { id ->
-                    vm.updateElement(id) { it.copy(text = text, font = font) }
-                }
-            },
-            onDismiss = {
-                showAssets = false
-                textSheetElementId = null
-            },
+            onDismiss = { showAssetsSheet = false },
         )
     }
 
-    if (showPalette) {
-        PaletteSheet(
-            onPickColor = { color ->
-                val id = selectedId ?: return@PaletteSheet
-                vm.updateElement(id) { it.copy(color = color.toLong()) }
-            },
-            onDismiss = { showPalette = false },
-        )
+    if (showTextStyle) {
+        val textEl = textStyleElementId?.let { id ->
+            canvas.elements.firstOrNull { it.id == id && it.type == CanvasElementType.TEXT }
+        }
+        if (textEl != null) {
+            TextStyleSheet(
+                element = textEl,
+                onFontChange = { font ->
+                    vm.updateElement(textEl.id) { it.copy(font = font) }
+                },
+                onColorChange = { color ->
+                    vm.updateElement(textEl.id) { it.copy(color = color) }
+                },
+                onDismiss = {
+                    showTextStyle = false
+                    textStyleElementId = null
+                },
+            )
+        }
     }
 
     showStampPicker?.let { mode ->
@@ -659,7 +703,12 @@ private fun CanvasElementOnBoard(
             }
             .then(
                 if (element.type == CanvasElementType.TEXT) {
-                    Modifier
+                    Modifier.pointerInput(element.id) {
+                        detectTapGestures(
+                            onTap = { onSelect() },
+                            onDoubleTap = { onBeginTextEdit() },
+                        )
+                    }
                 } else {
                     Modifier.pointerInput(element.id) {
                         detectTapGestures(onTap = { onSelect() })
@@ -724,32 +773,135 @@ private fun CanvasElementOnBoard(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EditAssetsSheet(
-    background: String,
-    initialTab: AssetsTab,
-    editingTextElement: CanvasElement?,
-    onBackground: (String) -> Unit,
+private fun BackgroundsSheet(
+    current: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(64.dp))
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "Backgrounds",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            sheetState.hide()
+                            onDismiss()
+                        }
+                    },
+                    shape = RoundedCornerShape(18.dp),
+                ) { Text("Done") }
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                BackgroundsGrid(
+                    current = current,
+                    scrollState = scrollState,
+                    sheetState = sheetState,
+                    onSelect = {
+                        scope.launch { sheetState.hide() }
+                        onSelect(it)
+                        onDismiss()
+                    },
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AssetsOnlySheet(
     onPickAsset: (AssetOption) -> Unit,
-    onAddText: (String, String) -> Unit,
-    onUpdateText: (String, String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(64.dp))
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "Assets",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.weight(1f))
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            sheetState.hide()
+                            onDismiss()
+                        }
+                    },
+                    shape = RoundedCornerShape(18.dp),
+                ) { Text("Done") }
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                AssetCategoriesList(
+                    scrollState = scrollState,
+                    sheetState = sheetState,
+                    onPick = { asset ->
+                        scope.launch { sheetState.hide() }
+                        onPickAsset(asset)
+                        onDismiss()
+                    }
+                )
+            }
+        }
+    }
+}
+
+private enum class TextStyleTab(val label: String) {
+    Font("Font"),
+    Color("Color"),
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TextStyleSheet(
+    element: CanvasElement,
+    onFontChange: (String) -> Unit,
+    onColorChange: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
-    val isEditingExistingText = editingTextElement != null
-    var tab by remember(editingTextElement?.id, initialTab) { mutableStateOf(initialTab) }
-    var newText by remember(editingTextElement?.id) { mutableStateOf(editingTextElement?.text.orEmpty()) }
-    var font by remember(editingTextElement?.id) {
-        mutableStateOf(editingTextElement?.font ?: FontPresets.first().first)
-    }
-
-    fun dismissWithAction(action: () -> Unit) {
-        scope.launch {
-            sheetState.hide()
-            action()
-            onDismiss()
-        }
-    }
+    var tab by remember { mutableStateOf(TextStyleTab.Font) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -764,18 +916,18 @@ private fun EditAssetsSheet(
                 .padding(bottom = 24.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(
-                    onClick = { dismissWithAction {} },
-                    shape = RoundedCornerShape(18.dp),
-                ) { Text("Done") }
+                Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Edit Assets",
+                    "Text Style",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.weight(1f))
-                Spacer(Modifier.width(64.dp))
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(18.dp),
+                ) { Text("Done") }
             }
             Spacer(Modifier.height(12.dp))
             Row(
@@ -784,7 +936,7 @@ private fun EditAssetsSheet(
                     .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp))
                     .padding(4.dp),
             ) {
-                AssetsTab.entries.forEach { t ->
+                TextStyleTab.entries.forEach { t ->
                     TabChip(
                         label = t.label,
                         selected = tab == t,
@@ -795,39 +947,266 @@ private fun EditAssetsSheet(
             }
             Spacer(Modifier.height(16.dp))
             when (tab) {
-                AssetsTab.Backgrounds -> BackgroundsGrid(
-                    current = background,
-                    onSelect = { dismissWithAction { onBackground(it) } },
+                TextStyleTab.Font -> FontPresetsContent(
+                    currentFont = element.font,
+                    onFontChange = onFontChange,
                 )
-                AssetsTab.Assets -> AssetCategoriesList(onPick = { dismissWithAction { onPickAsset(it) } })
-                AssetsTab.Text -> TextTab(
-                    text = newText,
-                    onTextChange = {
-                        newText = it
-                        if (isEditingExistingText) {
-                            onUpdateText(it, font)
-                        }
-                    },
-                    font = font,
-                    onFontChange = {
-                        font = it
-                        if (isEditingExistingText) {
-                            onUpdateText(newText, it)
-                        }
-                    },
-                    actionLabel = if (isEditingExistingText) "Done" else "Add",
-                    onAdd = {
-                        if (isEditingExistingText) {
-                            dismissWithAction { onUpdateText(newText, font) }
-                        } else {
-                            val textToAdd = newText.ifBlank { "New text" }
-                            val fontToAdd = font
-                            dismissWithAction { onAddText(textToAdd, fontToAdd) }
-                            newText = ""
-                        }
-                    },
+                TextStyleTab.Color -> ColorPickerContent(
+                    currentColor = element.color,
+                    onColorChange = onColorChange,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun FontPresetsContent(
+    currentFont: String,
+    onFontChange: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            "Font Presets",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(4.dp))
+        FontPresets.forEach { (key, label) ->
+            val fontFamily = fontFamilyMap[key] ?: FontFamily.Serif
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onFontChange(key) }
+                    .background(
+                        if (currentFont == key) MaterialTheme.colorScheme.surfaceVariant
+                        else MaterialTheme.colorScheme.surface,
+                        RoundedCornerShape(14.dp),
+                    )
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.titleMedium.copy(fontFamily = fontFamily),
+                    )
+                    Text(
+                        "The quick brown fox jumps over the lazy dog",
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = fontFamily),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                RadioButton(selected = currentFont == key, onClick = { onFontChange(key) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorPickerContent(
+    currentColor: Long,
+    onColorChange: (Long) -> Unit,
+) {
+    val palette = listOf(
+        // Row 1: neutrals
+        0xFF1F1B18L, 0xFF3C3733L, 0xFF8A827AL, 0xFFB9BDB1L, 0xFFFFFFFFL,
+        // Row 2: warm
+        0xFFE77B2EL, 0xFFF59E0BL, 0xFFF2DFA1L, 0xFFE2A3B5L, 0xFFBFA98FL,
+        // Row 3: cool
+        0xFFA6C4E0L, 0xFF4FA3D9L, 0xFF6366F1L, 0xFF8B5CF6L, 0xFF14B8A6L,
+        // Row 4: vivid
+        0xFFD94F4FL, 0xFFEC4899L, 0xFF34D399L, 0xFFC6DFA4L, 0xFF6C5B4AL,
+    )
+    Column {
+        Text(
+            "Text Color",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(16.dp))
+        palette.chunked(5).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                row.forEach { c ->
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color(c))
+                            .border(
+                                1.dp,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                CircleShape,
+                            )
+                            .clickable { onColorChange(c) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (currentColor == c) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = if (c == 0xFFFFFFFFL.toLong()) Color.Black else Color.White,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpandableFab(
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onAddStamp: () -> Unit,
+    onAddAssets: () -> Unit,
+    onAddText: () -> Unit,
+) {
+    // Dim overlay when expanded
+    if (expanded) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.35f))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                ) { onToggle() },
+        )
+    }
+
+    // FAB stack at bottom-end
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(end = 20.dp, bottom = 24.dp),
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.Bottom,
+    ) {
+        // Render sub-buttons individually with staggered slide-up from main FAB
+
+        // 1. Add Text (highest, furthest from FAB)
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(animationSpec = tween(durationMillis = 300, delayMillis = 120, easing = FastOutSlowInEasing)) + 
+                    slideInVertically(
+                        initialOffsetY = { it * 4 }, // Slides up from bottom (near FAB)
+                        animationSpec = tween(durationMillis = 300, delayMillis = 120, easing = FastOutSlowInEasing)
+                    ),
+            exit = fadeOut(animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)) + 
+                   slideOutVertically(
+                       targetOffsetY = { it * 4 },
+                       animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+                   ),
+        ) {
+            FabSubButton(
+                icon = Icons.Filled.TextFields,
+                label = "Add Text",
+                onClick = onAddText,
+            )
+        }
+
+        if (expanded) {
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // 2. Add Assets (middle)
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(animationSpec = tween(durationMillis = 250, delayMillis = 60, easing = FastOutSlowInEasing)) + 
+                    slideInVertically(
+                        initialOffsetY = { it * 3 }, // Slides up from bottom (near FAB)
+                        animationSpec = tween(durationMillis = 250, delayMillis = 60, easing = FastOutSlowInEasing)
+                    ),
+            exit = fadeOut(animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)) + 
+                   slideOutVertically(
+                       targetOffsetY = { it * 3 },
+                       animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing)
+                   ),
+        ) {
+            FabSubButton(
+                icon = Icons.Filled.Dashboard,
+                label = "Add Assets",
+                onClick = onAddAssets,
+            )
+        }
+
+        if (expanded) {
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // 3. Add Stamp (lowest, closest to FAB)
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(animationSpec = tween(durationMillis = 200, delayMillis = 0, easing = FastOutSlowInEasing)) + 
+                    slideInVertically(
+                        initialOffsetY = { it * 2 }, // Slides up from FAB position
+                        animationSpec = tween(durationMillis = 200, delayMillis = 0, easing = FastOutSlowInEasing)
+                    ),
+            exit = fadeOut(animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing)) + 
+                   slideOutVertically(
+                       targetOffsetY = { it * 2 },
+                       animationSpec = tween(durationMillis = 100, easing = FastOutSlowInEasing)
+                   ),
+        ) {
+            FabSubButton(
+                icon = Icons.Filled.PhotoLibrary,
+                label = "Add Stamp",
+                onClick = onAddStamp,
+            )
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        val rotation by animateFloatAsState(
+            targetValue = if (expanded) 45f else 0f,
+            label = "fab_rotation",
+        )
+        FloatingActionButton(
+            onClick = onToggle,
+            containerColor = MaterialTheme.colorScheme.primary,
+        ) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = if (expanded) "Close" else "Add",
+                modifier = Modifier.graphicsLayer { rotationZ = rotation },
+            )
+        }
+    }
+}
+
+@Composable
+private fun FabSubButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Text(
+            label,
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        Spacer(Modifier.width(12.dp))
+        SmallFloatingActionButton(
+            onClick = onClick,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            Icon(icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -859,15 +1238,19 @@ private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit, modif
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BackgroundsGrid(current: String, onSelect: (String) -> Unit) {
-    Text(
-        "Project Background",
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Spacer(Modifier.height(8.dp))
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+private fun BackgroundsGrid(
+    current: String,
+    scrollState: ScrollState,
+    sheetState: SheetState,
+    onSelect: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .verticalScroll(scrollState)
+            .scrollFirstThenDragSheet(scrollState, sheetState)
+    ) {
         BackgroundOptions.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -908,9 +1291,18 @@ private fun BackgroundsGrid(current: String, onSelect: (String) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AssetCategoriesList(onPick: (AssetOption) -> Unit) {
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+private fun AssetCategoriesList(
+    scrollState: ScrollState,
+    sheetState: SheetState,
+    onPick: (AssetOption) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .verticalScroll(scrollState)
+            .scrollFirstThenDragSheet(scrollState, sheetState)
+    ) {
         AssetCategorySection(title = "Tape Pack", assets = TapeAssets, onPick = onPick)
         Spacer(Modifier.height(12.dp))
         AssetCategorySection(title = "Sticker Pack", assets = StickerAssets, onPick = onPick)
@@ -961,7 +1353,6 @@ private fun AssetCategorySection(
                             .weight(1f)
                             .aspectRatio(0.85f)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF26211E)) // Dark frame color from screenshot
                             .clickable { onPick(a) }
                             .padding(top = 16.dp, bottom = 8.dp, start = 8.dp, end = 8.dp),
                         contentAlignment = Alignment.Center,
@@ -982,125 +1373,22 @@ private fun AssetCategorySection(
                                         assetKey = a.key,
                                     ),
                                     stamps = emptyList(),
-                                    modifier = Modifier.size(64.dp), // slightly larger
+                                    modifier = Modifier.size(64.dp),
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 a.label,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = MaterialTheme.colorScheme.onSurface,
                             )
                         }
                     }
                 }
-                // Fill empty spots in the last row to maintain grid alignment
                 if (rowAssets.size < 3) {
                     repeat(3 - rowAssets.size) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TextTab(
-    text: String,
-    onTextChange: (String) -> Unit,
-    font: String,
-    onFontChange: (String) -> Unit,
-    actionLabel: String,
-    onAdd: () -> Unit,
-) {
-    Column {
-        Text("Typography UI", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = onTextChange,
-                placeholder = { Text("Enter text...") },
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.weight(1f),
-            )
-            Button(
-                onClick = onAdd,
-                modifier = Modifier.height(56.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
-            ) { Text(actionLabel) }
-        }
-        
-        Spacer(Modifier.height(16.dp))
-        Text("Font Presets", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(8.dp))
-        
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 400.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            FontPresets.forEach { (key, label) ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onFontChange(key) }
-                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(14.dp))
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            "The quick brown fox jumps over the lazy dog",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    RadioButton(selected = font == key, onClick = { onFontChange(key) })
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PaletteSheet(onPickColor: (Long) -> Unit, onDismiss: () -> Unit) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val palette = listOf(
-        0xFF1F1B18L, 0xFFFFFFFFL, 0xFFE77B2EL, 0xFFE2A3B5L,
-        0xFFA6C4E0L, 0xFFC6DFA4L, 0xFFF2DFA1L, 0xFFB9BDB1L,
-    )
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-        ) {
-            Text("Color", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                palette.forEach { c ->
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(c))
-                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), CircleShape)
-                            .clickable { onPickColor(c); onDismiss() },
-                    )
                 }
             }
         }
@@ -1173,4 +1461,31 @@ private fun StampPickerDialog(
             ScraplyDialogConfirmButton(label = "Close", onClick = onDismiss)
         },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun Modifier.scrollFirstThenDragSheet(
+    scrollState: ScrollState,
+    sheetState: SheetState,
+): Modifier {
+    return this.pointerInput(scrollState, sheetState) {
+        detectVerticalDragGestures(
+            onVerticalDrag = { change: PointerInputChange, dragAmount: Float ->
+                if (dragAmount < 0f) {
+                    // Dragging up (scroll forward)
+                    if (scrollState.value < scrollState.maxValue) {
+                        scrollState.dispatchRawDelta(-dragAmount)
+                        change.consume()
+                    }
+                } else if (dragAmount > 0f) {
+                    // Dragging down (scroll backward)
+                    if (scrollState.value > 0) {
+                        scrollState.dispatchRawDelta(-dragAmount)
+                        change.consume()
+                    }
+                }
+            }
+        )
+    }
 }
