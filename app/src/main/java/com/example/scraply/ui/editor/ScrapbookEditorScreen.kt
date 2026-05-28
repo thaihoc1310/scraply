@@ -229,7 +229,7 @@ fun ScrapbookEditorScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(24.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

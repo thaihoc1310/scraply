@@ -64,7 +64,7 @@ fun StampDetailScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,

@@ -88,7 +88,7 @@ fun UploadStampScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 40.dp, start = 20.dp, end = 20.dp),
+                .padding(top = 24.dp, start = 20.dp, end = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(

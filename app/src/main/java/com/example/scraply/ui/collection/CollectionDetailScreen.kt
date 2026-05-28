@@ -59,7 +59,7 @@ fun CollectionDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()

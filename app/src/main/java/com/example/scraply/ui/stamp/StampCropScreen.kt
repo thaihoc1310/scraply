@@ -84,7 +84,7 @@ fun StampCropScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 20.dp),
     ) {
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
             text = "Adjust stamp",

@@ -70,7 +70,7 @@ fun StampDetailsScreen(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
                     .padding(horizontal = 20.dp)
-                    .padding(top = 40.dp, bottom = 16.dp),
+                    .padding(top = 16.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 CircleIconButton(
