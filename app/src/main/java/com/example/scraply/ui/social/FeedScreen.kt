@@ -1,8 +1,10 @@
 package com.example.scraply.ui.social
 
 import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,7 +39,9 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -73,6 +80,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.example.scraply.data.remote.FeedComment
 import com.example.scraply.data.remote.FeedLikeUser
 import com.example.scraply.data.remote.FeedPost
+import com.example.scraply.data.model.CanvasState
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.ScraplyDialog
 import com.example.scraply.ui.common.ScraplyDialogCancelButton
@@ -88,12 +96,19 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FeedScreen() {
+fun FeedScreen(
+    onOpenPost: (String) -> Unit = {},
+) {
     val vm: FeedViewModel = scraplyViewModel()
     val feedState by vm.feed.collectAsState()
     val authState by vm.authState.collectAsState()
     var activeCommentsPost by remember { mutableStateOf<FeedPost?>(null) }
     var activeLikesPost by remember { mutableStateOf<FeedPost?>(null) }
+    var activeOptionsPost by remember { mutableStateOf<FeedPost?>(null) }
+    var isDownloadingOption by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Column(
@@ -101,7 +116,7 @@ fun FeedScreen() {
     ) {
         Spacer(Modifier.height(40.dp))
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -109,11 +124,21 @@ fun FeedScreen() {
                     .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Explore, contentDescription = null)
+                Icon(
+                    imageVector = Icons.Filled.Explore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
             }
-            Spacer(Modifier.width(12.dp))
-            Text("Feed", style = MaterialTheme.typography.titleLarge)
         }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "Feed",
+            style = MaterialTheme.typography.displayMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 20.dp),
+        )
+        Spacer(Modifier.height(8.dp))
 
         AuthGate(
             vm = vm,
@@ -127,20 +152,8 @@ fun FeedScreen() {
             } else {
                 FeedList(
                     feed = feedState.feed,
-                    currentUserId = authState.user?.uid,
-                    onLike = { vm.toggleLike(it) },
-                    onOpenComments = { post ->
-                        activeLikesPost = null
-                        activeCommentsPost = post
-                    },
-                    onOpenLikes = { post ->
-                        activeCommentsPost = null
-                        activeLikesPost = post
-                    },
-                    onEditPost = { post, title, description ->
-                        vm.updatePostDetails(post, title, description)
-                    },
-                    onDeletePost = { vm.deletePost(it) },
+                    onOpenPost = onOpenPost,
+                    onMoreClick = { activeOptionsPost = it },
                 )
             }
         }
@@ -172,6 +185,51 @@ fun FeedScreen() {
                 postId = likesPost.id,
                 showTopBar = false,
                 modifier = Modifier.fillMaxHeight(0.6f),
+            )
+        }
+    }
+
+    val optionsPost = activeOptionsPost
+    if (optionsPost != null) {
+        ModalBottomSheet(
+            sheetState = sheetState,
+            onDismissRequest = { 
+                if (!isDownloadingOption) {
+                    activeOptionsPost = null
+                }
+            },
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            scrimColor = Color.Black.copy(alpha = 0.35f),
+            dragHandle = null
+        ) {
+            PostOptionsPanel(
+                post = optionsPost,
+                onDismiss = { activeOptionsPost = null },
+                onShare = {
+                    val sendIntent = Intent().apply {
+                        action = Intent.ACTION_SEND
+                        putExtra(Intent.EXTRA_TEXT, "Check out this beautiful scrapbook on Scraply: ${optionsPost.imageUrl}")
+                        type = "text/plain"
+                    }
+                    val shareIntent = Intent.createChooser(sendIntent, "Share scrapbook image")
+                    context.startActivity(shareIntent)
+                    activeOptionsPost = null
+                },
+                onDownload = {
+                    isDownloadingOption = true
+                    scope.launch {
+                        val saved = savePostImageToGallery(context, optionsPost)
+                        isDownloadingOption = false
+                        Toast.makeText(
+                            context,
+                            if (saved) "Saved to Pictures/Scraply" else "Could not save image",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        activeOptionsPost = null
+                    }
+                },
+                isDownloading = isDownloadingOption
             )
         }
     }
@@ -289,14 +347,62 @@ fun FeedPostScreen(
 }
 
 @Composable
+private fun PinterestFeedCard(
+    post: FeedPost,
+    onClick: () -> Unit,
+    onMoreClick: () -> Unit,
+) {
+    val canvasState = remember(post.canvasJson) {
+        CanvasState.fromJson(post.canvasJson)
+    }
+    val ratio = canvasState.aspectRatio
+
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Image matching the real canvas ratio - naked, beautifully clipped, clickable!
+        AsyncImage(
+            model = post.imageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(ratio)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick)
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
+        )
+
+        // Three-dot options menu aligned bottom-right under the image (highly compact)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 0.dp, bottom = 0.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onMoreClick,
+                modifier = Modifier
+                    .padding(top = 1.dp)
+                    .size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MoreHoriz,
+                    contentDescription = "Options",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun FeedList(
     feed: List<FeedPost>,
-    currentUserId: String?,
-    onLike: (FeedPost) -> Unit,
-    onOpenComments: (FeedPost) -> Unit,
-    onOpenLikes: (FeedPost) -> Unit,
-    onEditPost: (FeedPost, String, String) -> Unit,
-    onDeletePost: (FeedPost) -> Unit,
+    onOpenPost: (String) -> Unit,
+    onMoreClick: (FeedPost) -> Unit,
 ) {
     if (feed.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -308,19 +414,173 @@ private fun FeedList(
         }
         return
     }
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+
+    LazyVerticalStaggeredGrid(
+        columns = StaggeredGridCells.Fixed(2),
+        contentPadding = PaddingValues(
+            start = 6.dp,
+            end = 6.dp,
+            top = 10.dp,
+            bottom = 140.dp
+        ),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalItemSpacing = 4.dp, // Sát nhau hơn giữa ảnh trên và ảnh dưới
+        modifier = Modifier.fillMaxSize()
     ) {
         items(feed, key = { it.id }) { post ->
-            FeedCard(
-                post,
-                onLike = { onLike(post) },
-                onOpenComments = { onOpenComments(post) },
-                currentUserId = currentUserId,
-                onEditPost = onEditPost,
-                onDeletePost = onDeletePost,
-                onOpenLikes = { onOpenLikes(post) },
+            PinterestFeedCard(
+                post = post,
+                onClick = { onOpenPost(post.id) },
+                onMoreClick = { onMoreClick(post) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun PostOptionsPanel(
+    post: FeedPost,
+    onDismiss: () -> Unit,
+    onShare: () -> Unit,
+    onDownload: () -> Unit,
+    isDownloading: Boolean,
+) {
+    val canvasState = remember(post.canvasJson) {
+        CanvasState.fromJson(post.canvasJson)
+    }
+    val ratio = canvasState.aspectRatio
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.Transparent)
+    ) {
+        // 1. The Sheet Body Column (starts 80.dp down to make space for the floating preview)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 80.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                )
+                .padding(bottom = 40.dp)
+        ) {
+            // Drag handle at the top center of the sheet body
+            Box(
+                modifier = Modifier
+                    .padding(top = 12.dp)
+                    .size(width = 36.dp, height = 4.dp)
+                    .background(
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f),
+                        RoundedCornerShape(2.dp)
+                    )
+                    .align(Alignment.CenterHorizontally)
+            )
+
+            // Close button Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+            }
+
+            Spacer(Modifier.height(54.dp)) // Leave space for the floating, overlapping image
+
+            // Scrapbook author subtext
+            Text(
+                text = "Scrapbook created by ${post.username ?: "someone"}",
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(horizontal = 24.dp)
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            // Option 1: Share
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isDownloading, onClick = onShare)
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = "Share",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    text = "Share",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Option 2: Download Image
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = !isDownloading, onClick = onDownload)
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Download,
+                        contentDescription = "Download image",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Text(
+                    text = if (isDownloading) "Downloading..." else "Download image",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        // 2. The Overlapping Image (floats at the top center, popping out of the sheet!)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .height(160.dp)
+                .aspectRatio(ratio)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(16.dp)
+                )
+        ) {
+            AsyncImage(
+                model = post.imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
         }
     }
@@ -336,6 +596,11 @@ fun FeedCard(
     onDeletePost: ((FeedPost) -> Unit)? = null,
     onOpenLikes: (() -> Unit)? = null,
 ) {
+    val canvasState = remember(post.canvasJson) {
+        CanvasState.fromJson(post.canvasJson)
+    }
+    val ratio = canvasState.aspectRatio
+
     var showPostMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -379,13 +644,16 @@ fun FeedCard(
             Spacer(Modifier.weight(1f))
             if (canManagePost) {
                 Box {
-                    CircleIconButton(
-                        icon = Icons.Filled.MoreVert,
-                        contentDescription = "Post options",
+                    IconButton(
                         onClick = { showPostMenu = true },
-                        modifier = Modifier.size(40.dp),
-                        background = MaterialTheme.colorScheme.surfaceVariant,
-                    )
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MoreVert,
+                            contentDescription = "Post options",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                     ScraplyDropdownMenu(
                         expanded = showPostMenu,
                         onDismissRequest = { showPostMenu = false },
@@ -413,10 +681,11 @@ fun FeedCard(
         }
         Spacer(Modifier.height(10.dp))
         AsyncImage(
-            model = post.imageUrl, contentDescription = null,
-            modifier = Modifier.fillMaxWidth().aspectRatio(0.8f)
+            model = post.imageUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().aspectRatio(ratio)
                 .clip(RoundedCornerShape(14.dp))
-                .background(Color(0x22000000))
                 .clickable { showImageViewer = true },
         )
         Spacer(Modifier.height(8.dp))
@@ -430,7 +699,7 @@ fun FeedCard(
                 )
             }
             Text(
-                if (post.likeCount == 1L) "1 like" else "${post.likeCount} likes",
+                text = "${post.likeCount}",
                 fontWeight = FontWeight.SemiBold,
                 modifier = if (onOpenLikes != null) {
                     Modifier.clickable(onClick = onOpenLikes)

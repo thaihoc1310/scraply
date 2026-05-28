@@ -21,9 +21,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.items
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Button
@@ -66,9 +68,12 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scraply.data.auth.ScraplyUser
 import com.example.scraply.data.remote.FeedPost
+import com.example.scraply.data.model.CanvasState
 import com.example.scraply.ui.common.ScraplyDialog
 import com.example.scraply.ui.common.ScraplyDialogCancelButton
 import com.example.scraply.ui.common.ScraplyOutlinedTextField
+import com.example.scraply.ui.common.ScraplyDropdownMenu
+import com.example.scraply.ui.common.ScraplyDropdownMenuItem
 import com.example.scraply.ui.notifications.NotificationsViewModel
 import com.example.scraply.ui.vm.scraplyViewModel
 import java.io.File
@@ -91,7 +96,7 @@ fun ProfileScreen(
     ) {
         Spacer(Modifier.height(40.dp))
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Profile", style = MaterialTheme.typography.titleLarge)
@@ -101,8 +106,33 @@ fun ProfileScreen(
                     unreadCount = notifState.unreadCount,
                     onClick = onOpenNotifications,
                 )
-                IconButton(onClick = { vm.signOut() }) {
-                    Icon(Icons.Filled.Logout, contentDescription = "Sign out")
+                var showMenu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Filled.Menu, contentDescription = "More options")
+                    }
+                    ScraplyDropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                    ) {
+                        ScraplyDropdownMenuItem(
+                            label = "Edit profile",
+                            icon = Icons.Filled.Edit,
+                            onClick = {
+                                showMenu = false
+                                vm.beginEdit()
+                            },
+                        )
+                        ScraplyDropdownMenuItem(
+                            label = "Sign out",
+                            icon = Icons.Filled.Logout,
+                            destructive = true,
+                            onClick = {
+                                showMenu = false
+                                vm.signOut()
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -118,7 +148,6 @@ fun ProfileScreen(
                 saving = profileState.saving,
                 editing = profileState.editing,
                 message = profileState.message,
-                onBeginEdit = { vm.beginEdit() },
                 onCancelEdit = { vm.cancelEdit() },
                 onSaveEdit = { dn, un, bio, path -> vm.saveProfile(dn, un, bio, path) },
                 onDismissMessage = { vm.dismissMessage() },
@@ -135,32 +164,50 @@ private fun ProfileBody(
     saving: Boolean,
     editing: Boolean,
     message: String?,
-    onBeginEdit: () -> Unit,
     onCancelEdit: () -> Unit,
     onSaveEdit: (displayName: String, username: String, bio: String, newAvatarPath: String?) -> Unit,
     onDismissMessage: () -> Unit,
     onOpenPost: (FeedPost) -> Unit,
 ) {
-    val scroll = rememberScrollState()
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = 24.dp),
-    ) {
-        ProfileHeader(profile, myPostsCount = myPosts.size, onEdit = onBeginEdit)
-
-        Spacer(Modifier.height(12.dp))
-        if (myPosts.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(32.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "You haven't published any scrapbooks yet.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyVerticalStaggeredGrid(
+            columns = StaggeredGridCells.Fixed(2),
+            contentPadding = PaddingValues(
+                start = 6.dp,
+                end = 6.dp,
+                top = 12.dp,
+                bottom = 20.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalItemSpacing = 6.dp,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            item(span = StaggeredGridItemSpan.FullLine) {
+                ProfileHeader(profile, myPostsCount = myPosts.size)
             }
-        } else {
-            MyPostsGrid(posts = myPosts, onOpenPost = onOpenPost)
+
+            item(span = StaggeredGridItemSpan.FullLine) {
+                Spacer(Modifier.height(12.dp))
+            }
+
+            if (myPosts.isEmpty()) {
+                item(span = StaggeredGridItemSpan.FullLine) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            "You haven't published any scrapbooks yet.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            } else {
+                items(myPosts, key = { it.id }) { post ->
+                    MyPostThumb(post = post, onClick = { onOpenPost(post) })
+                }
+            }
         }
     }
 
@@ -193,11 +240,32 @@ private fun ProfileBody(
     }
 }
 
+// ProfileHeader remains here...
+
+@Composable
+private fun MyPostThumb(post: FeedPost, onClick: () -> Unit) {
+    val canvasState = remember(post.canvasJson) {
+        CanvasState.fromJson(post.canvasJson)
+    }
+    val ratio = canvasState.aspectRatio
+
+    AsyncImage(
+        model = post.imageUrl,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(ratio)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f)),
+    )
+}
+
 @Composable
 private fun ProfileHeader(
     profile: ScraplyUser?,
     myPostsCount: Int,
-    onEdit: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
@@ -251,22 +319,6 @@ private fun ProfileHeader(
             modifier = Modifier.padding(horizontal = 20.dp),
         )
     }
-
-    Spacer(Modifier.height(12.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedButton(
-            onClick = onEdit,
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(14.dp),
-        ) {
-            Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text("Edit profile")
-        }
-    }
 }
 
 @Composable
@@ -277,41 +329,7 @@ private fun Stat(count: Long, label: String) {
     }
 }
 
-@Composable
-private fun MyPostsGrid(posts: List<FeedPost>, onOpenPost: (FeedPost) -> Unit) {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val columns = 3
-        val spacing = 2.dp
-        val rows = (posts.size + columns - 1) / columns
-        val itemSize = (maxWidth - spacing * (columns - 1).toFloat()) / columns.toFloat()
-        val gridHeight = itemSize * rows.toFloat() + spacing * (rows - 1).coerceAtLeast(0).toFloat()
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            modifier = Modifier.fillMaxWidth().height(gridHeight),
-            horizontalArrangement = Arrangement.spacedBy(spacing),
-            verticalArrangement = Arrangement.spacedBy(spacing),
-            userScrollEnabled = false,
-        ) {
-            items(posts, key = { it.id }) { post ->
-                MyPostThumb(post = post, onClick = { onOpenPost(post) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun MyPostThumb(post: FeedPost, onClick: () -> Unit) {
-    AsyncImage(
-        model = post.imageUrl,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxWidth()
-            .aspectRatio(1f)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick),
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
