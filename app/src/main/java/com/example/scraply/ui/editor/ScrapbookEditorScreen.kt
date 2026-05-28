@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyRow
@@ -105,7 +107,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -122,6 +126,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
@@ -186,6 +191,14 @@ fun ScrapbookEditorScreen(
     // Collapse FAB when an element is selected
     LaunchedEffect(selectedId) {
         if (selectedId != null) fabExpanded = false
+    }
+
+    var canvasScale by remember { mutableStateOf<Float?>(null) }
+    var canvasOffset by remember { mutableStateOf(Offset.Zero) }
+
+    LaunchedEffect(canvas.aspectRatio) {
+        canvasScale = null
+        canvasOffset = Offset.Zero
     }
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
@@ -326,50 +339,91 @@ fun ScrapbookEditorScreen(
             }
             Spacer(Modifier.height(12.dp))
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .aspectRatio(0.58f)
-                    .clip(RoundedCornerShape(22.dp))
-                    .onSizeChanged { canvasSize = it }
-                    .drawWithContent {
-                        graphicsLayer.record { this@drawWithContent.drawContent() }
-                        drawLayer(graphicsLayer)
-                    }
-                    .pointerInput(Unit) {
-                        detectTapGestures(onTap = {
-                            vm.selectElement(null)
-                            endInlineTextEdit()
-                        })
-                    },
+                    .weight(1f)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                    .clipToBounds()
             ) {
-                BackgroundSurface(backgroundType = background, modifier = Modifier.fillMaxSize())
+                val ratio = canvas.aspectRatio
+                val canvasBaseHeight = 600.dp
+                val localWidth = canvasBaseHeight * ratio
+                val localHeight = canvasBaseHeight
 
-                canvas.elements.sortedBy { it.zIndex }.forEach { element ->
-                    CanvasElementOnBoard(
-                        element = element,
-                        stamps = stamps,
-                        selected = element.id == selectedId,
-                        canvasSize = canvasSize,
-                        isEditing = element.id == editingText,
-                        onSelect = {
-                            vm.selectElement(element.id)
-                            if (editingText != null && editingText != element.id) {
-                                endInlineTextEdit()
+                val maxW = maxWidth - 32.dp
+                val maxH = maxHeight - 32.dp
+                val fitScaleX = maxW.value / localWidth.value
+                val fitScaleY = maxH.value / localHeight.value
+                val defaultScale = kotlin.math.min(fitScaleX, fitScaleY)
+
+                val activeScale = canvasScale ?: defaultScale
+
+                // Background container filling all space, handling workspace gestures inside the scope
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                val currentScale = canvasScale ?: defaultScale
+                                canvasScale = (currentScale * zoom).coerceIn(0.1f, 5.0f)
+                                canvasOffset = canvasOffset + pan
                             }
-                            if (element.type != CanvasElementType.TEXT) {
-                                focusManager.clearFocus()
-                            }
-                        },
-                        onBeginTextEdit = { beginInlineTextEdit(element.id) },
-                        onUpdate = { updated -> vm.updateElement(element.id) { updated } },
-                        onTransformStart = { vm.onTransformStart() },
-                        onTransformEnd = { vm.onTransformEnd() },
-                        onTextChange = { newText ->
-                            vm.updateElement(element.id) { it.copy(text = newText) }
                         }
-                    )
+                        .pointerInput(Unit) {
+                            detectTapGestures(onTap = {
+                                vm.selectElement(null)
+                                endInlineTextEdit()
+                            })
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .requiredSize(localWidth, localHeight)
+                            .graphicsLayer {
+                                scaleX = activeScale
+                                scaleY = activeScale
+                                translationX = canvasOffset.x
+                                translationY = canvasOffset.y
+                            }
+                            .shadow(8.dp, RoundedCornerShape(16.dp))
+                            .border(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(16.dp))
+                            .onSizeChanged { canvasSize = it }
+                            .drawWithContent {
+                                graphicsLayer.record { this@drawWithContent.drawContent() }
+                                drawLayer(graphicsLayer)
+                            },
+                    ) {
+                        BackgroundSurface(backgroundType = background, modifier = Modifier.fillMaxSize())
+
+                        canvas.elements.sortedBy { it.zIndex }.forEach { element ->
+                            CanvasElementOnBoard(
+                                element = element,
+                                stamps = stamps,
+                                selected = element.id == selectedId,
+                                canvasSize = canvasSize,
+                                isEditing = element.id == editingText,
+                                onSelect = {
+                                    vm.selectElement(element.id)
+                                    if (editingText != null && editingText != element.id) {
+                                        endInlineTextEdit()
+                                    }
+                                    if (element.type != CanvasElementType.TEXT) {
+                                        focusManager.clearFocus()
+                                    }
+                                },
+                                onBeginTextEdit = { beginInlineTextEdit(element.id) },
+                                onUpdate = { updated -> vm.updateElement(element.id) { updated } },
+                                onTransformStart = { vm.onTransformStart() },
+                                onTransformEnd = { vm.onTransformEnd() },
+                                onTextChange = { newText ->
+                                    vm.updateElement(element.id) { it.copy(text = newText) }
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -589,7 +643,9 @@ fun ScrapbookEditorScreen(
     if (showBackgrounds) {
         BackgroundsSheet(
             current = background,
+            currentRatio = canvas.aspectRatio,
             onSelect = { vm.setBackground(it) },
+            onRatioChange = { vm.setAspectRatio(it) },
             onDismiss = { showBackgrounds = false },
         )
     }
@@ -728,44 +784,48 @@ private fun CanvasElementOnBoard(
                     }
                 },
             )
-            .pointerInput(element.id) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    onTransformStart()
-                    do {
-                        val event = awaitPointerEvent()
-                    } while (event.changes.any { it.pressed })
-                    onTransformEnd()
-                }
-            }
-            .pointerInput(element.id) {
-                detectTransformGestures(panZoomLock = false) { _, pan, zoom, rot ->
-                    onSelect()
-                    val el = latestElement
-                    
-                    // Convert local pan to screen pan by applying rotation and scale
-                    val angleRad = el.rotation * Math.PI / 180.0
-                    val cosA = kotlin.math.cos(angleRad).toFloat()
-                    val sinA = kotlin.math.sin(angleRad).toFloat()
-                    
-                    val dx = (pan.x * cosA - pan.y * sinA) * el.scale
-                    val dy = (pan.x * sinA + pan.y * cosA) * el.scale
+            .then(
+                if (selected) {
+                    Modifier
+                        .pointerInput(element.id) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                onTransformStart()
+                                do {
+                                    val event = awaitPointerEvent()
+                                } while (event.changes.any { it.pressed })
+                                onTransformEnd()
+                            }
+                        }
+                        .pointerInput(element.id) {
+                            detectTransformGestures(panZoomLock = false) { _, pan, zoom, rot ->
+                                val el = latestElement
 
-                    val hwN = (size.width * el.scale / 2f) / w
-                    val hhN = (size.height * el.scale / 2f) / h
+                                // Convert local pan to screen pan by applying rotation and scale
+                                val angleRad = el.rotation * Math.PI / 180.0
+                                val cosA = kotlin.math.cos(angleRad).toFloat()
+                                val sinA = kotlin.math.sin(angleRad).toFloat()
 
-                    val minX = kotlin.math.min(hwN, 1f - hwN)
-                    val maxX = kotlin.math.max(hwN, 1f - hwN)
-                    val minY = kotlin.math.min(hhN, 1f - hhN)
-                    val maxY = kotlin.math.max(hhN, 1f - hhN)
+                                val dx = (pan.x * cosA - pan.y * sinA) * el.scale
+                                val dy = (pan.x * sinA + pan.y * cosA) * el.scale
 
-                    val nx = (el.x + dx / w).coerceIn(minX, maxX)
-                    val ny = (el.y + dy / h).coerceIn(minY, maxY)
-                    val ns = (el.scale * zoom).coerceIn(0.2f, 4f)
-                    val nr = el.rotation + rot
-                    onUpdate(el.copy(x = nx, y = ny, scale = ns, rotation = nr))
-                }
-            }
+                                val hwN = (size.width * el.scale / 2f) / w
+                                val hhN = (size.height * el.scale / 2f) / h
+
+                                val minX = kotlin.math.min(hwN, 1f - hwN)
+                                val maxX = kotlin.math.max(hwN, 1f - hwN)
+                                val minY = kotlin.math.min(hhN, 1f - hhN)
+                                val maxY = kotlin.math.max(hhN, 1f - hhN)
+
+                                val nx = (el.x + dx / w).coerceIn(minX, maxX)
+                                val ny = (el.y + dy / h).coerceIn(minY, maxY)
+                                val ns = (el.scale * zoom).coerceIn(0.2f, 4f)
+                                val nr = el.rotation + rot
+                                onUpdate(el.copy(x = nx, y = ny, scale = ns, rotation = nr))
+                            }
+                        }
+                } else Modifier
+            )
             .then(
                 if (selected) Modifier.border(
                     2.dp,
@@ -784,16 +844,107 @@ private fun CanvasElementOnBoard(
     }
 }
 
+private enum class BackgroundTab(val label: String) {
+    Style("Background"),
+    Ratio("Canvas Ratio"),
+}
+
+private data class AspectRatioOption(val label: String, val ratio: Float, val desc: String)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AspectRatioPickerContent(
+    currentRatio: Float,
+    sheetState: SheetState,
+    onRatioChange: (Float) -> Unit,
+) {
+    val options = listOf(
+        AspectRatioOption("9:16", 0.5625f, "Portrait (Stories / Reels)"),
+        AspectRatioOption("3:4", 0.75f, "Portrait (Instagram / Standard)"),
+        AspectRatioOption("1:1", 1f, "Square (Feed post)"),
+        AspectRatioOption("4:3", 1.333f, "Landscape (Classic photography)"),
+        AspectRatioOption("16:9", 1.777f, "Cinematic (Widescreen)"),
+    )
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .scrollFirstThenDragSheet(scrollState, sheetState),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        options.forEach { opt ->
+            val isSelected = kotlin.math.abs(currentRatio - opt.ratio) < 0.05f
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onRatioChange(opt.ratio) }
+                    .background(
+                        if (isSelected) MaterialTheme.colorScheme.surfaceVariant
+                        else MaterialTheme.colorScheme.surface,
+                        RoundedCornerShape(16.dp),
+                    )
+                    .border(
+                        1.dp,
+                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                        else Color.Transparent,
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Visual ratio indicator box
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .background(
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            RoundedCornerShape(8.dp)
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    // Small thumbnail drawing the proportion
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .aspectRatio(opt.ratio)
+                            .border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        opt.label,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        opt.desc,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                RadioButton(selected = isSelected, onClick = { onRatioChange(opt.ratio) })
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BackgroundsSheet(
     current: String,
+    currentRatio: Float,
     onSelect: (String) -> Unit,
+    onRatioChange: (Float) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
+    var tab by remember { mutableStateOf(BackgroundTab.Style) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -811,7 +962,7 @@ private fun BackgroundsSheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Backgrounds",
+                    "Canvas Style & Ratio",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -827,17 +978,44 @@ private fun BackgroundsSheet(
                 ) { Text("Done") }
             }
             Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp))
+                    .padding(4.dp),
+            ) {
+                BackgroundTab.entries.forEach { t ->
+                    TabChip(
+                        label = t.label,
+                        selected = tab == t,
+                        onClick = { tab = t },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
             Box(modifier = Modifier.weight(1f)) {
-                BackgroundsGrid(
-                    current = current,
-                    scrollState = scrollState,
-                    sheetState = sheetState,
-                    onSelect = {
-                        scope.launch { sheetState.hide() }
-                        onSelect(it)
-                        onDismiss()
-                    },
-                )
+                when (tab) {
+                    BackgroundTab.Style -> {
+                        BackgroundsGrid(
+                            current = current,
+                            scrollState = scrollState,
+                            sheetState = sheetState,
+                            onSelect = {
+                                scope.launch { sheetState.hide() }
+                                onSelect(it)
+                                onDismiss()
+                            },
+                        )
+                    }
+                    BackgroundTab.Ratio -> {
+                        AspectRatioPickerContent(
+                            currentRatio = currentRatio,
+                            sheetState = sheetState,
+                            onRatioChange = onRatioChange,
+                        )
+                    }
+                }
             }
         }
     }

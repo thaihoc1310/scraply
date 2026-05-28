@@ -143,6 +143,11 @@ class EditorViewModel(
         _background.value = type
     }
 
+    fun setAspectRatio(ratio: Float) {
+        pushUndo()
+        _canvas.value = _canvas.value.copy(aspectRatio = ratio)
+    }
+
     private fun pushUndo() {
         undoStack.addLast(_canvas.value)
         if (undoStack.size > 40) undoStack.removeFirst()

@@ -26,6 +26,7 @@ data class CanvasElement(
 @Serializable
 data class CanvasState(
     val elements: List<CanvasElement> = emptyList(),
+    val aspectRatio: Float = 0.5625f,
 ) {
     companion object {
         private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
