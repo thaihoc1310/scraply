@@ -44,6 +44,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.FlashOff
@@ -109,7 +110,7 @@ fun StampCameraScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(MaterialTheme.colorScheme.surface),
     ) {
         if (cameraPermission.status.isGranted) {
             CameraContent(
@@ -283,11 +284,16 @@ private fun CameraContent(
                 }
             },
     ) {
+        val cameraSurfaceModifier = Modifier
+            .fillMaxSize()
+            .padding(12.dp)
+        val cameraSurfaceShape = RoundedCornerShape(28.dp)
+
         // Camera preview
         AndroidView(
             factory = { previewView },
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = cameraSurfaceModifier
+                .clip(cameraSurfaceShape)
                 .onGloballyPositioned { coordinates ->
                     previewSize = coordinates.size
                 },
@@ -298,8 +304,8 @@ private fun CameraContent(
                 bitmap = frozen.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.FillBounds,
-                modifier = Modifier
-                    .fillMaxSize()
+                modifier = cameraSurfaceModifier
+                    .clip(cameraSurfaceShape)
                     .zIndex(1f),
             )
         }
@@ -316,7 +322,7 @@ private fun CameraContent(
             modifier = Modifier.zIndex(3f),
         ) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = cameraSurfaceModifier,
                 contentAlignment = Alignment.Center,
             ) {
                 val aspectRatio = CutterGeometry.cutterWidth / CutterGeometry.cutterHeight
@@ -346,17 +352,22 @@ private fun CameraContent(
                 .zIndex(8f),
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth(stampHoleWidthFraction)
-                    .aspectRatio(stampAspectRatio)
-                    .graphicsLayer {
-                        val progress = fallProgress.value
-                        scaleX = 0.94f + 0.06f * progress
-                        scaleY = 0.94f + 0.06f * progress
-                        alpha = 1f - 0.35f * progress
-                    }
-                    .background(Color.Black),
-            )
+                modifier = cameraSurfaceModifier,
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(stampHoleWidthFraction)
+                        .aspectRatio(stampAspectRatio)
+                        .graphicsLayer {
+                            val progress = fallProgress.value
+                            scaleX = 0.94f + 0.06f * progress
+                            scaleY = 0.94f + 0.06f * progress
+                            alpha = 1f - 0.35f * progress
+                        }
+                        .background(Color.Black),
+                )
+            }
         }
 
         // Falling card
@@ -364,34 +375,37 @@ private fun CameraContent(
             visible = showFallingCard,
             enter = fadeIn(tween(50)),
             exit = fadeOut(tween(100)),
-            modifier = Modifier
-                .align(Alignment.Center)
-                .zIndex(10f),
+            modifier = Modifier.zIndex(10f),
         ) {
-            fallingBitmap?.let { bmp ->
-                val currentStampWidth = (previewSize.width * stampHoleWidthFraction).coerceAtLeast(1f)
-                val adjustStampWidth = with(density) {
-                    (previewSize.width - 40.dp.toPx()).coerceAtLeast(1f) * 0.58f
+            Box(
+                modifier = cameraSurfaceModifier,
+                contentAlignment = Alignment.Center,
+            ) {
+                fallingBitmap?.let { bmp ->
+                    val currentStampWidth = (previewSize.width * stampHoleWidthFraction).coerceAtLeast(1f)
+                    val adjustStampWidth = with(density) {
+                        (previewSize.width - 40.dp.toPx()).coerceAtLeast(1f) * 0.58f
+                    }
+                    val targetScale = (adjustStampWidth / currentStampWidth).coerceIn(1f, 1.55f)
+                    val fallTargetY = with(density) { (-64).dp.toPx() }
+                    val progress = fallProgress.value
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth(stampHoleWidthFraction)
+                            .aspectRatio(stampAspectRatio)
+                            .graphicsLayer {
+                                translationY = fallTargetY * progress
+                                rotationZ = -2.5f * progress
+                                val cardScale = 1f + (targetScale - 1f) * progress
+                                scaleX = cardScale
+                                scaleY = cardScale
+                                shadowElevation = 20f
+                            },
+                    )
                 }
-                val targetScale = (adjustStampWidth / currentStampWidth).coerceIn(1f, 1.55f)
-                val fallTargetY = with(density) { (-64).dp.toPx() }
-                val progress = fallProgress.value
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxWidth(stampHoleWidthFraction)
-                        .aspectRatio(stampAspectRatio)
-                        .graphicsLayer {
-                            translationY = fallTargetY * progress
-                            rotationZ = -2.5f * progress
-                            val cardScale = 1f + (targetScale - 1f) * progress
-                            scaleX = cardScale
-                            scaleY = cardScale
-                            shadowElevation = 20f
-                        },
-                )
             }
         }
 

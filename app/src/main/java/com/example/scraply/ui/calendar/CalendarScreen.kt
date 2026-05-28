@@ -32,7 +32,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
 import com.example.scraply.data.model.Stamp
@@ -52,7 +51,6 @@ fun CalendarScreen(
 ) {
     val stamps by vm.stamps.collectAsState()
     var month by remember { mutableStateOf(YearMonth.now()) }
-    var compact by remember { mutableStateOf(false) }
 
     val grouped = remember(stamps, month) {
         val zone = ZoneId.systemDefault()
@@ -128,28 +126,6 @@ fun CalendarScreen(
 
         Row(
             modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp))
-                .padding(4.dp),
-        ) {
-            CompactFullChip(
-                label = "Compact",
-                selected = compact,
-                onClick = { compact = true },
-                modifier = Modifier.weight(1f),
-            )
-            CompactFullChip(
-                label = "Full",
-                selected = !compact,
-                onClick = { compact = false },
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-
-        Row(
-            modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
         ) {
@@ -167,7 +143,6 @@ fun CalendarScreen(
 
         MonthGrid(
             month = month,
-            compact = compact,
             stampsByDay = grouped,
             onDateClick = { day ->
                 onOpenDate(day.toEpochDay())
@@ -178,35 +153,8 @@ fun CalendarScreen(
 }
 
 @Composable
-private fun CompactFullChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier,
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (selected) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 private fun MonthGrid(
     month: YearMonth,
-    compact: Boolean,
     stampsByDay: Map<LocalDate, List<Stamp>>,
     onDateClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
@@ -240,7 +188,6 @@ private fun MonthGrid(
             DateCell(
                 date = date,
                 inMonth = inMonth,
-                compact = compact,
                 stamps = stamps,
                 onClick = { if (inMonth) onDateClick(date) },
             )
@@ -252,13 +199,12 @@ private fun MonthGrid(
 private fun DateCell(
     date: LocalDate,
     inMonth: Boolean,
-    compact: Boolean,
     stamps: List<Stamp>,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .aspectRatio(if (compact) 1f else 0.78f)
+            .aspectRatio(0.78f)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
@@ -279,7 +225,7 @@ private fun DateCell(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(width = if (compact) 22.dp else 30.dp, height = if (compact) 26.dp else 36.dp)
+                        .size(width = 30.dp, height = 36.dp)
                         .padding(1.dp),
                 ) {
                     StampImage(
