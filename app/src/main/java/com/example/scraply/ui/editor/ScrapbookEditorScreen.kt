@@ -845,8 +845,8 @@ private fun CanvasElementOnBoard(
 }
 
 private enum class BackgroundTab(val label: String) {
-    Style("Background"),
-    Ratio("Canvas Ratio"),
+    Style("Style"),
+    Ratio("Ratio"),
 }
 
 private data class AspectRatioOption(val label: String, val ratio: Float, val desc: String)
@@ -962,7 +962,7 @@ private fun BackgroundsSheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Canvas Style & Ratio",
+                    "Background",
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
