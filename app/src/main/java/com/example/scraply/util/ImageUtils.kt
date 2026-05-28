@@ -21,6 +21,7 @@ import com.example.scraply.R
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+import kotlin.math.roundToInt
 
 object ImageUtils {
     enum class StampStyle(val label: String) {
@@ -117,25 +118,38 @@ object ImageUtils {
         translateY: Float = 0f,
         scale: Float = 1f,
     ): Bitmap {
-        val aspect = 147f / 190f
-        val outW = outSizePx
-        val outH = (outSizePx / aspect).toInt()
+        val frameW = outSizePx / CutterGeometry.innerW
+        val frameH = frameW * CutterGeometry.cutterHeight / CutterGeometry.cutterWidth
+        val innerLeft = frameW * CutterGeometry.innerX
+        val innerTop = frameH * CutterGeometry.innerY
+        val outW = (frameW * CutterGeometry.innerW).roundToInt()
+        val outH = (frameH * CutterGeometry.innerH).roundToInt()
         val result = createBitmap(outW, outH)
         val canvas = Canvas(result)
 
         val srcAspect = source.width.toFloat() / source.height.toFloat()
-        val outAspect = outW.toFloat() / outH.toFloat()
-        val baseScale = if (srcAspect > outAspect) {
-            outH.toFloat() / source.height.toFloat()
+        val frameAspect = frameW / frameH
+        val baseScale = if (srcAspect > frameAspect) {
+            frameH / source.height.toFloat()
         } else {
-            outW.toFloat() / source.width.toFloat()
+            frameW / source.width.toFloat()
         }
-        val finalScale = baseScale * scale
-        val drawW = source.width * finalScale
-        val drawH = source.height * finalScale
-        val cx = outW / 2f + translateX * outW
-        val cy = outH / 2f + translateY * outH
-        val dst = RectF(cx - drawW / 2f, cy - drawH / 2f, cx + drawW / 2f, cy + drawH / 2f)
+        val drawW = source.width * baseScale
+        val drawH = source.height * baseScale
+        val frameCenterX = frameW / 2f
+        val frameCenterY = frameH / 2f
+        val translatePxX = translateX * frameW
+        val translatePxY = translateY * frameH
+        val initialLeft = (frameW - drawW) / 2f
+        val initialTop = (frameH - drawH) / 2f
+        val initialRight = initialLeft + drawW
+        val initialBottom = initialTop + drawH
+        val dst = RectF(
+            frameCenterX + (initialLeft - frameCenterX) * scale + translatePxX - innerLeft,
+            frameCenterY + (initialTop - frameCenterY) * scale + translatePxY - innerTop,
+            frameCenterX + (initialRight - frameCenterX) * scale + translatePxX - innerLeft,
+            frameCenterY + (initialBottom - frameCenterY) * scale + translatePxY - innerTop,
+        )
         canvas.drawBitmap(source, null, dst, Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
 
         val mask = renderStampMask(context, outW, outH)

@@ -82,7 +82,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.scraply.R
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.util.CutterGeometry
-import com.example.scraply.util.PostageStampShape
 import com.example.scraply.util.StampBitmapProcessor
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -356,7 +355,6 @@ private fun CameraContent(
                         scaleY = 0.94f + 0.06f * progress
                         alpha = 1f - 0.35f * progress
                     }
-                    .clip(PostageStampShape)
                     .background(Color.Black),
             )
         }

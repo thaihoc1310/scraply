@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.Rect
+import android.graphics.RectF
 import android.media.ExifInterface
 import androidx.compose.ui.unit.IntSize
 import com.example.scraply.R
@@ -97,6 +98,9 @@ object StampBitmapProcessor {
 
         paint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         canvas.drawBitmap(mask, 0f, 0f, paint)
+        paint.xfermode = null
+
+        drawStampStroke(context, canvas, source.width, source.height)
 
         mask.recycle()
 
@@ -142,6 +146,17 @@ object StampBitmapProcessor {
         canvas.restore()
 
         return bitmap
+    }
+
+    private fun drawStampStroke(context: Context, canvas: Canvas, width: Int, height: Int) {
+        val stroke = BitmapFactory.decodeResource(context.resources, R.drawable.stamp_stroke) ?: return
+        canvas.drawBitmap(
+            stroke,
+            null,
+            RectF(0f, 0f, width.toFloat(), height.toFloat()),
+            Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG),
+        )
+        stroke.recycle()
     }
 
     /**
