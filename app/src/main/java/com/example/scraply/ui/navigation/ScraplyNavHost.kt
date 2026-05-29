@@ -198,7 +198,11 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             }
 
             composable(Routes.FEED) {
-                FeedScreen()
+                FeedScreen(
+                    onOpenPost = { id ->
+                        navController.navigate(Routes.feedPost(id))
+                    }
+                )
             }
 
             composable(

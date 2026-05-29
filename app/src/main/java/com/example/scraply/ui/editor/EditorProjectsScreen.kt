@@ -1,9 +1,12 @@
 package com.example.scraply.ui.editor
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,14 +36,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.scraply.data.model.CanvasElementType
+import com.example.scraply.data.model.CanvasState
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.collection.TextDialog
 import com.example.scraply.ui.common.CircleIconButton
@@ -219,52 +225,66 @@ private fun ProjectPreview(
     card: ProjectCard,
     stamps: List<Stamp>,
 ) {
-    var previewSize by remember { mutableStateOf(IntSize.Zero) }
-    Box(
+    val canvasState = remember(card.project.canvasJson) {
+        CanvasState.fromJson(card.project.canvasJson)
+    }
+    val ratio = canvasState.aspectRatio
+
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(188.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .onSizeChanged { previewSize = it },
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center,
     ) {
-        BackgroundSurface(backgroundType = card.project.backgroundType, modifier = Modifier.fillMaxSize())
-
         if (card.elements.isEmpty()) {
             Text(
                 "Empty canvas",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            return@Box
-        }
+        } else {
+            val canvasBaseHeight = 600.dp
+            val localWidth = canvasBaseHeight * ratio
+            val localHeight = canvasBaseHeight
 
-        val width = previewSize.width.toFloat().coerceAtLeast(1f)
-        val height = previewSize.height.toFloat().coerceAtLeast(1f)
-        card.elements.sortedBy { it.zIndex }.forEach { element ->
+            val maxW = maxWidth - 16.dp
+            val maxH = maxHeight - 16.dp
+            val fitScaleX = maxW.value / localWidth.value
+            val fitScaleY = maxH.value / localHeight.value
+            val previewScale = kotlin.math.min(fitScaleX, fitScaleY)
+
+            val wPx = with(LocalDensity.current) { localWidth.toPx() }
+            val hPx = with(LocalDensity.current) { localHeight.toPx() }
+
             Box(
-                modifier = Modifier.graphicsLayer {
-                    val previewScale = element.scale * 0.46f
-                    translationX = (element.x - 0.5f) * width
-                    translationY = (element.y - 0.5f) * height
-                    scaleX = previewScale
-                    scaleY = previewScale
-                    rotationZ = element.rotation
-                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
-                },
-                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .requiredSize(localWidth, localHeight)
+                    .graphicsLayer {
+                        scaleX = previewScale
+                        scaleY = previewScale
+                    }
+                    .shadow(4.dp, RoundedCornerShape(8.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(8.dp))
             ) {
-                if (element.type == CanvasElementType.TEXT) {
-                    Text(
-                        text = element.text.ifBlank { "Text" },
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color(element.color),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                } else {
-                    CanvasElementView(element = element, stamps = stamps)
+                BackgroundSurface(backgroundType = card.project.backgroundType, modifier = Modifier.fillMaxSize())
+
+                card.elements.sortedBy { it.zIndex }.forEach { element ->
+                    Box(
+                        modifier = Modifier.graphicsLayer {
+                            translationX = element.x * wPx - size.width / 2f
+                            translationY = element.y * hPx - size.height / 2f
+                            scaleX = if (element.isFlipped) -element.scale else element.scale
+                            scaleY = element.scale
+                            rotationZ = element.rotation
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CanvasElementView(element = element, stamps = stamps)
+                    }
                 }
             }
         }
