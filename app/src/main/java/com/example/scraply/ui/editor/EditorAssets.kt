@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -363,7 +364,7 @@ fun CanvasElementView(
                         Box {
                             if (textFieldValue.value.text.isBlank()) {
                                 Text(
-                                    text = "Tap to edit",
+                                    text = stringResource(R.string.editor_tap_to_edit),
                                     style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
                                 )
                             }
@@ -374,7 +375,7 @@ fun CanvasElementView(
             } else {
                 // Read-only text display - no keyboard, no focus
                 Text(
-                    text = element.text.ifBlank { "Tap to edit" },
+                    text = element.text.ifBlank { stringResource(R.string.editor_tap_to_edit) },
                     style = textStyle.let {
                         if (element.text.isBlank()) it.copy(color = it.color.copy(alpha = 0.55f)) else it
                     },

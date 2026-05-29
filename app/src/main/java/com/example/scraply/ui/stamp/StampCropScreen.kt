@@ -24,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,7 +89,7 @@ fun StampCropScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Adjust stamp",
+            text = stringResource(R.string.stamp_adjust),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.fillMaxWidth(),
@@ -115,21 +117,33 @@ fun StampCropScreen(
         }
 
         OptionSection(
-            title = "Stamp Style",
+            title = stringResource(R.string.stamp_style),
             options = ImageUtils.StampStyle.entries,
             selected = selectedStyle,
             onSelect = { selectedStyle = it },
-            label = { it.label },
+            label = { style ->
+                when (style) {
+                    ImageUtils.StampStyle.CLASSIC -> stringResource(R.string.stamp_style_classic)
+                    ImageUtils.StampStyle.VINTAGE -> stringResource(R.string.stamp_style_vintage)
+                    ImageUtils.StampStyle.VINTAGE_2 -> stringResource(R.string.stamp_style_vintage2)
+                }
+            },
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
         OptionSection(
-            title = "Stamp Frame",
+            title = stringResource(R.string.stamp_frame),
             options = ImageUtils.StampFrameStyle.entries,
             selected = selectedFrame,
             onSelect = { selectedFrame = it },
-            label = { it.label },
+            label = { frame ->
+                when (frame) {
+                    ImageUtils.StampFrameStyle.FULL_BLEED -> stringResource(R.string.stamp_frame_full)
+                    ImageUtils.StampFrameStyle.CLEAN_FRAME -> stringResource(R.string.stamp_frame_frame)
+                    ImageUtils.StampFrameStyle.NO_STROKE -> stringResource(R.string.stamp_frame_none)
+                }
+            },
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -146,7 +160,7 @@ fun StampCropScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.weight(1f),
             ) {
-                Text("Retake")
+                Text(stringResource(R.string.stamp_retake))
             }
             Button(
                 onClick = {
@@ -176,7 +190,7 @@ fun StampCropScreen(
                 modifier = Modifier.weight(1f),
                 enabled = !isProcessing && bitmap != null,
             ) {
-                Text(if (isProcessing) "Processing..." else "Next")
+                Text(if (isProcessing) stringResource(R.string.stamp_processing) else stringResource(R.string.stamp_next))
             }
         }
     }
@@ -188,7 +202,7 @@ private fun <T> OptionSection(
     options: List<T>,
     selected: T,
     onSelect: (T) -> Unit,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
 ) {
     Text(
         text = title,

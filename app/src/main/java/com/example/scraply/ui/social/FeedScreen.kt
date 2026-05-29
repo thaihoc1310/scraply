@@ -77,6 +77,9 @@ import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import androidx.core.graphics.drawable.toBitmap
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
+import java.util.Locale
 import com.example.scraply.data.remote.FeedComment
 import com.example.scraply.data.remote.FeedLikeUser
 import com.example.scraply.data.remote.FeedPost
@@ -133,7 +136,7 @@ fun FeedScreen(
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Feed",
+            text = stringResource(R.string.feed_title),
             style = MaterialTheme.typography.displayMedium,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = 20.dp),
@@ -142,8 +145,8 @@ fun FeedScreen(
 
         AuthGate(
             vm = vm,
-            signedOutHeadline = "Welcome back",
-            signedOutSubtext = "Sign in to explore scrapbooks from the community.",
+            signedOutHeadline = stringResource(R.string.feed_welcome_back),
+            signedOutSubtext = stringResource(R.string.feed_signed_out_explore_subtext),
         ) {
             if (feedState.isLoading && feedState.feed.isEmpty()) {
                 FeedLoadingGrid()
@@ -207,10 +210,10 @@ fun FeedScreen(
                 onShare = {
                     val sendIntent = Intent().apply {
                         action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, "Check out this beautiful scrapbook on Scraply: ${optionsPost.imageUrl}")
+                        putExtra(Intent.EXTRA_TEXT, context.getString(R.string.feed_share_message, optionsPost.imageUrl))
                         type = "text/plain"
                     }
-                    val shareIntent = Intent.createChooser(sendIntent, "Share scrapbook image")
+                    val shareIntent = Intent.createChooser(sendIntent, context.getString(R.string.feed_share_chooser_title))
                     context.startActivity(shareIntent)
                     activeOptionsPost = null
                 },
@@ -221,7 +224,7 @@ fun FeedScreen(
                         isDownloadingOption = false
                         Toast.makeText(
                             context,
-                            if (saved) "Saved to Pictures/Scraply" else "Could not save image",
+                            if (saved) context.getString(R.string.editor_save_success_toast) else context.getString(R.string.editor_save_failed_toast),
                             Toast.LENGTH_SHORT
                         ).show()
                         activeOptionsPost = null
@@ -257,15 +260,15 @@ fun FeedPostScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.calendar_back))
             }
-            Text("Post", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.feed_post), style = MaterialTheme.typography.titleLarge)
         }
 
         AuthGate(
             vm = vm,
-            signedOutHeadline = "Welcome back",
-            signedOutSubtext = "Sign in to explore scrapbooks from the community.",
+            signedOutHeadline = stringResource(R.string.feed_welcome_back),
+            signedOutSubtext = stringResource(R.string.feed_signed_out_explore_subtext),
         ) {
             when {
                 feedState.isLoading && feedState.feed.isEmpty() -> {
@@ -274,7 +277,7 @@ fun FeedPostScreen(
                 post == null -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            "Post not found.",
+                            stringResource(R.string.feed_post_not_found),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -469,7 +472,7 @@ private fun PinterestFeedCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.MoreHoriz,
-                    contentDescription = "Options",
+                    contentDescription = stringResource(R.string.close),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(18.dp)
                 )
@@ -487,7 +490,7 @@ private fun FeedList(
     if (feed.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
-                "No posts yet. Publish a scrapbook to start the feed!",
+                stringResource(R.string.feed_no_posts_prompt),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -568,7 +571,7 @@ private fun PostOptionsPanel(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.close),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -578,8 +581,9 @@ private fun PostOptionsPanel(
             Spacer(Modifier.height(54.dp)) // Leave space for the floating, overlapping image
 
             // Scrapbook author subtext
+            val authorStr = post.username?.takeIf { it.isNotBlank() } ?: stringResource(R.string.feed_anonymous_author)
             Text(
-                text = "Scrapbook created by ${post.username ?: "someone"}",
+                text = stringResource(R.string.feed_scrapbook_created_by, authorStr),
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
@@ -599,13 +603,13 @@ private fun PostOptionsPanel(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Share,
-                    contentDescription = "Share",
+                    contentDescription = stringResource(R.string.editor_share),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(Modifier.width(16.dp))
                 Text(
-                    text = "Share",
+                    text = stringResource(R.string.editor_share),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -628,14 +632,14 @@ private fun PostOptionsPanel(
                 } else {
                     Icon(
                         imageVector = Icons.Filled.Download,
-                        contentDescription = "Download image",
+                        contentDescription = stringResource(R.string.feed_download_image),
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(24.dp)
                     )
                 }
                 Spacer(Modifier.width(16.dp))
                 Text(
-                    text = if (isDownloading) "Downloading..." else "Download image",
+                    text = if (isDownloading) stringResource(R.string.feed_downloading) else stringResource(R.string.feed_download_image),
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -716,7 +720,7 @@ fun FeedCard(
                 }
             }
             Spacer(Modifier.width(10.dp))
-            val authorName = post.username?.takeIf { it.isNotBlank() } ?: "Someone"
+            val authorName = post.username?.takeIf { it.isNotBlank() } ?: stringResource(R.string.feed_anonymous_author)
             Text(
                 authorName,
                 style = MaterialTheme.typography.bodyLarge,
@@ -731,7 +735,7 @@ fun FeedCard(
                     ) {
                         Icon(
                             imageVector = Icons.Filled.MoreVert,
-                            contentDescription = "Post options",
+                            contentDescription = stringResource(R.string.close),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -740,7 +744,7 @@ fun FeedCard(
                         onDismissRequest = { showPostMenu = false },
                     ) {
                         ScraplyDropdownMenuItem(
-                            label = "Edit",
+                            label = stringResource(R.string.feed_edit_post),
                             icon = Icons.Filled.Edit,
                             onClick = {
                                 showPostMenu = false
@@ -748,7 +752,7 @@ fun FeedCard(
                             },
                         )
                         ScraplyDropdownMenuItem(
-                            label = "Delete",
+                            label = stringResource(R.string.feed_delete_post),
                             icon = Icons.Filled.Delete,
                             destructive = true,
                             onClick = {
@@ -774,7 +778,7 @@ fun FeedCard(
             IconButton(onClick = onLike) {
                 Icon(
                     if (post.likedByMe) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "Like",
+                    contentDescription = stringResource(R.string.feed_likes),
                     tint = if (post.likedByMe) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.onSurface,
                 )
@@ -790,7 +794,7 @@ fun FeedCard(
             )
             Spacer(Modifier.width(12.dp))
             IconButton(onClick = onOpenComments) {
-                Icon(Icons.Filled.ChatBubbleOutline, contentDescription = "Comments")
+                Icon(Icons.Filled.ChatBubbleOutline, contentDescription = stringResource(R.string.feed_comments))
             }
             Spacer(Modifier.width(4.dp))
             Text("${post.commentCount}")
@@ -832,11 +836,11 @@ fun FeedCard(
 
     if (showDeleteDialog && onDeletePost != null) {
         ScraplyDialog(
-            title = "Delete post",
+            title = stringResource(R.string.feed_delete_post),
             onDismissRequest = { showDeleteDialog = false },
             content = {
                 Text(
-                    "Remove this scrapbook from your published feed?",
+                    stringResource(R.string.feed_delete_confirm_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -845,7 +849,7 @@ fun FeedCard(
                 ScraplyDialogCancelButton(onClick = { showDeleteDialog = false })
                 Spacer(Modifier.width(8.dp))
                 ScraplyDialogConfirmButton(
-                    label = "Delete",
+                    label = stringResource(R.string.collections_delete),
                     destructive = true,
                     onClick = {
                         onDeletePost(post)
@@ -874,21 +878,21 @@ private fun EditPostDialog(
     var description by remember(post.id) { mutableStateOf(post.description.orEmpty()) }
 
     ScraplyDialog(
-        title = "Edit post",
+        title = stringResource(R.string.feed_edit_post),
         onDismissRequest = onDismiss,
         content = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ScraplyOutlinedTextField(
                     value = title,
                     onValueChange = { title = it.take(1000) },
-                    label = "Title",
+                    label = stringResource(R.string.stamp_title),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 ScraplyOutlinedTextField(
                     value = description,
                     onValueChange = { description = it.take(1000) },
-                    label = "Description",
+                    label = stringResource(R.string.stamp_caption),
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 4,
                 )
@@ -897,7 +901,7 @@ private fun EditPostDialog(
         actions = {
             ScraplyDialogCancelButton(onClick = onDismiss)
             Spacer(Modifier.width(8.dp))
-            ScraplyDialogConfirmButton(label = "Save", onClick = { onSave(title, description) })
+            ScraplyDialogConfirmButton(label = stringResource(R.string.collections_save), onClick = { onSave(title, description) })
         },
     )
 }
@@ -970,7 +974,7 @@ private fun PostImageViewer(
             ) {
                 CircleIconButton(
                     icon = Icons.Filled.Close,
-                    contentDescription = "Close image",
+                    contentDescription = stringResource(R.string.close),
                     onClick = onDismiss,
                     background = Color.Black.copy(alpha = 0.55f),
                     tint = Color.White,
@@ -991,7 +995,7 @@ private fun PostImageViewer(
                 } else {
                     CircleIconButton(
                         icon = Icons.Filled.Download,
-                        contentDescription = "Save image",
+                        contentDescription = stringResource(R.string.feed_download_image),
                         onClick = {
                             saving = true
                             scope.launch {
@@ -999,7 +1003,7 @@ private fun PostImageViewer(
                                 saving = false
                                 Toast.makeText(
                                     context,
-                                    if (saved) "Saved to Pictures/Scraply" else "Could not save image",
+                                    if (saved) context.getString(R.string.editor_save_success_toast) else context.getString(R.string.editor_save_failed_toast),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }
@@ -1039,7 +1043,7 @@ private fun CommentPreviewSection(
     Spacer(Modifier.height(6.dp))
     if (commentCount > visibleComments.size) {
         Text(
-            text = if (commentCount == 1L) "View 1 comment" else "View all $commentCount comments",
+            text = if (commentCount == 1L) stringResource(R.string.feed_view_one_comment) else stringResource(R.string.feed_view_all_comments, commentCount),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp).clickable(onClick = onOpenComments),
@@ -1059,7 +1063,7 @@ private fun CommentPreviewRow(
     onClick: () -> Unit,
 ) {
     val username = comment.username?.takeIf { it.isNotBlank() }
-        ?: "Someone"
+        ?: stringResource(R.string.feed_anonymous_author)
 
     Text(
         text = buildAnnotatedString {
@@ -1102,11 +1106,11 @@ fun LikesPanel(
             ) {
                 if (onBack != null) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.calendar_back))
                     }
                 }
                 Text(
-                    "Likes",
+                    stringResource(R.string.feed_likes),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -1129,7 +1133,7 @@ fun LikesPanel(
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            "No likes yet",
+                            stringResource(R.string.feed_no_likes),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -1155,7 +1159,7 @@ fun LikesPanel(
 private fun LikeUserRow(like: FeedLikeUser) {
     val name = like.displayName?.takeIf { it.isNotBlank() }
         ?: like.username?.takeIf { it.isNotBlank() }
-        ?: "Someone"
+        ?: stringResource(R.string.feed_anonymous_author)
 
     Row(
         modifier = Modifier.fillMaxWidth()

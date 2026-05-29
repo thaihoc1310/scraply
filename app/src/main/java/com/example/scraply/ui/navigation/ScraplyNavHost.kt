@@ -14,6 +14,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import com.example.scraply.ui.calendar.CalendarDateDetailScreen
 import com.example.scraply.ui.calendar.CalendarScreen
 import com.example.scraply.ui.calendar.CalendarViewModel
@@ -35,6 +40,10 @@ import com.example.scraply.ui.stamp.StampCameraScreen
 import com.example.scraply.ui.stamp.StampCropScreen
 import com.example.scraply.ui.stamp.StampDetailsScreen
 import com.example.scraply.ui.stamp.StampCaptureViewModel
+import com.example.scraply.ui.settings.SettingsScreen
+import com.example.scraply.ui.settings.RecentLikesScreen
+import com.example.scraply.ui.settings.RecentCommentsScreen
+import com.example.scraply.ui.social.EditProfileScreen
 import com.example.scraply.ui.vm.scraplyViewModel
 
 @Composable
@@ -236,6 +245,7 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 ProfileScreen(
                     onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                     onOpenPost = { id -> navController.navigate(Routes.profilePosts(id)) },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
 
@@ -256,6 +266,163 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     onOpenPost = { id, showComments ->
                         navController.navigate(Routes.feedPost(id, showComments))
                     },
+                )
+            }
+
+            composable(
+                Routes.SETTINGS,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                val profileEntry = remember(it) {
+                    navController.getBackStackEntry(Routes.PROFILE)
+                }
+                val profileVm: com.example.scraply.ui.social.ProfileViewModel =
+                    scraplyViewModel(viewModelStoreOwner = profileEntry)
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditProfile = {
+                        navController.navigate(Routes.EDIT_PROFILE)
+                    },
+                    onOpenRecentLikes = {
+                        navController.navigate(Routes.RECENT_LIKES)
+                    },
+                    onOpenRecentComments = {
+                        navController.navigate(Routes.RECENT_COMMENTS)
+                    },
+                    onSignOut = {
+                        profileVm.signOut()
+                    },
+                )
+            }
+
+            composable(
+                Routes.RECENT_LIKES,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                RecentLikesScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPost = { postId ->
+                        navController.navigate(Routes.feedPost(postId))
+                    }
+                )
+            }
+
+            composable(
+                Routes.RECENT_COMMENTS,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                RecentCommentsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPost = { postId ->
+                        navController.navigate(Routes.feedPost(postId))
+                    }
+                )
+            }
+
+            composable(
+                Routes.EDIT_PROFILE,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                val profileEntry = remember(it) {
+                    navController.getBackStackEntry(Routes.PROFILE)
+                }
+                val profileVm: com.example.scraply.ui.social.ProfileViewModel =
+                    scraplyViewModel(viewModelStoreOwner = profileEntry)
+                EditProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    viewModel = profileVm
                 )
             }
         }

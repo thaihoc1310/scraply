@@ -34,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.StampImage
@@ -73,7 +75,7 @@ fun CalendarScreen(
         ) {
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.calendar_back),
                 onClick = onBack,
             )
         }
@@ -105,20 +107,20 @@ fun CalendarScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                month.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
+                month.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Previous month",
+                contentDescription = stringResource(R.string.calendar_prev_month),
                 onClick = { month = month.minusMonths(1) },
             )
             Spacer(Modifier.width(4.dp))
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Next month",
+                contentDescription = stringResource(R.string.calendar_next_month),
                 onClick = { month = month.plusMonths(1) },
             )
         }
@@ -129,9 +131,18 @@ fun CalendarScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
         ) {
-            listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach {
+            val weekDays = listOf(
+                java.time.DayOfWeek.SUNDAY,
+                java.time.DayOfWeek.MONDAY,
+                java.time.DayOfWeek.TUESDAY,
+                java.time.DayOfWeek.WEDNESDAY,
+                java.time.DayOfWeek.THURSDAY,
+                java.time.DayOfWeek.FRIDAY,
+                java.time.DayOfWeek.SATURDAY
+            )
+            weekDays.forEach { day ->
                 Text(
-                    it,
+                    day.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -267,12 +278,12 @@ fun CalendarDateDetailScreen(
         ) {
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.calendar_back),
                 onClick = onBack,
             )
             Spacer(Modifier.width(12.dp))
             Text(
-                "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)} ${date.year}",
+                "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${date.year}",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -287,7 +298,7 @@ fun CalendarDateDetailScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "No stamps from this day",
+                    stringResource(R.string.calendar_no_stamps),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

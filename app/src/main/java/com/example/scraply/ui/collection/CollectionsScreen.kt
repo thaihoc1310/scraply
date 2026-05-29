@@ -36,7 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.scraply.R
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.PillBadge
 import com.example.scraply.ui.common.ScraplyCard
@@ -75,25 +77,25 @@ fun CollectionsScreen(
         ) {
             CircleIconButton(
                 icon = Icons.Filled.AddPhotoAlternate,
-                contentDescription = "Upload stamp",
+                contentDescription = stringResource(R.string.collections_upload_stamp),
                 onClick = onOpenUpload,
             )
             Spacer(Modifier.width(8.dp))
             CircleIconButton(
                 icon = Icons.Filled.CalendarViewMonth,
-                contentDescription = "Calendar",
+                contentDescription = stringResource(R.string.collections_calendar),
                 onClick = onOpenCalendar,
             )
             Spacer(Modifier.weight(1f))
             CircleIconButton(
                 icon = Icons.Filled.Add,
-                contentDescription = "New collection",
+                contentDescription = stringResource(R.string.collections_new_collection),
                 onClick = { showCreate = true },
             )
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "Collections",
+            text = stringResource(R.string.collections_title),
             style = MaterialTheme.typography.displayMedium,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = 20.dp),
@@ -120,9 +122,9 @@ fun CollectionsScreen(
 
     if (showCreate) {
         TextDialog(
-            title = "New collection",
-            placeholder = "Collection name",
-            confirmLabel = "Create",
+            title = stringResource(R.string.collections_new_collection),
+            placeholder = stringResource(R.string.collections_collection_name),
+            confirmLabel = stringResource(R.string.collections_create),
             onConfirm = { name ->
                 if (name.isNotBlank()) vm.createCollection(name.trim())
                 showCreate = false
@@ -134,10 +136,10 @@ fun CollectionsScreen(
     renaming?.let { id ->
         val current = cards.firstOrNull { it.collection.id == id }?.collection?.name.orEmpty()
         TextDialog(
-            title = "Rename collection",
-            placeholder = "Collection name",
+            title = stringResource(R.string.collections_rename_collection),
+            placeholder = stringResource(R.string.collections_collection_name),
             initial = current,
-            confirmLabel = "Save",
+            confirmLabel = stringResource(R.string.collections_save),
             onConfirm = { name ->
                 if (name.isNotBlank()) vm.renameCollection(id, name.trim())
                 renaming = null
@@ -159,13 +161,13 @@ private fun CollectionCardView(
     ScraplyCard(modifier = Modifier.fillMaxWidth()) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PillBadge(label = if (card.collection.isDefault) "Default" else "Custom")
+                PillBadge(label = if (card.collection.isDefault) stringResource(R.string.collections_default) else stringResource(R.string.collections_custom))
                 Spacer(Modifier.weight(1f))
                 if (!card.collection.isDefault) {
                     Box {
                         CircleIconButton(
                             icon = Icons.Filled.MoreHoriz,
-                            contentDescription = "More",
+                            contentDescription = stringResource(R.string.close),
                             onClick = { menuOpen = true },
                         )
                         ScraplyDropdownMenu(
@@ -173,12 +175,12 @@ private fun CollectionCardView(
                             onDismissRequest = { menuOpen = false },
                         ) {
                             ScraplyDropdownMenuItem(
-                                label = "Rename",
+                                label = stringResource(R.string.collections_rename),
                                 icon = Icons.Filled.Edit,
                                 onClick = { menuOpen = false; onRename() },
                             )
                             ScraplyDropdownMenuItem(
-                                label = "Delete",
+                                label = stringResource(R.string.collections_delete),
                                 icon = Icons.Filled.Delete,
                                 destructive = true,
                                 onClick = { menuOpen = false; onDelete() },
@@ -189,7 +191,7 @@ private fun CollectionCardView(
                 }
                 CircleIconButton(
                     icon = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Open",
+                    contentDescription = stringResource(R.string.collections_open),
                     onClick = onOpen,
                 )
             }
@@ -200,7 +202,7 @@ private fun CollectionCardView(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                "${card.stampCount} stamp${if (card.stampCount == 1) "" else "s"}",
+                stringResource(if (card.stampCount == 1) R.string.collections_stamp_count_singular else R.string.collections_stamp_count_plural, card.stampCount),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -217,7 +219,7 @@ private fun CollectionCardView(
             ) {
                 if (card.thumbUris.isEmpty()) {
                     Text(
-                        "No stamps yet",
+                        stringResource(R.string.collections_no_stamps),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.align(Alignment.Center),

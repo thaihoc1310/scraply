@@ -14,6 +14,9 @@ import com.example.scraply.ui.editor.EditorViewModel
 import com.example.scraply.ui.notifications.NotificationsViewModel
 import com.example.scraply.ui.social.CommentsViewModel
 import com.example.scraply.ui.social.FeedViewModel
+import com.example.scraply.ui.settings.SettingsViewModel
+import com.example.scraply.ui.settings.RecentLikesViewModel
+import com.example.scraply.ui.settings.RecentCommentsViewModel
 import com.example.scraply.ui.social.LikesViewModel
 import com.example.scraply.ui.social.ProfileViewModel
 import com.example.scraply.ui.stamp.StampCaptureViewModel
@@ -71,6 +74,22 @@ class ScraplyViewModelFactory(
                 ) as T
             LikesViewModel::class.java ->
                 LikesViewModel(
+                    authRepository = container.authRepository,
+                    firestoreSync = container.firestoreSyncRepository,
+                    socialRepository = container.socialRepository,
+                ) as T
+            SettingsViewModel::class.java ->
+                SettingsViewModel(
+                    appPreferencesRepository = container.appPreferencesRepository
+                ) as T
+            RecentLikesViewModel::class.java ->
+                RecentLikesViewModel(
+                    authRepository = container.authRepository,
+                    firestoreSync = container.firestoreSyncRepository,
+                    socialRepository = container.socialRepository,
+                ) as T
+            RecentCommentsViewModel::class.java ->
+                RecentCommentsViewModel(
                     authRepository = container.authRepository,
                     firestoreSync = container.firestoreSyncRepository,
                     socialRepository = container.socialRepository,

@@ -28,6 +28,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,12 +77,12 @@ fun StampDetailsScreen(
             ) {
                 CircleIconButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.calendar_back),
                     onClick = onBack,
                 )
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "Stamp details",
+                    stringResource(R.string.stamp_details),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -99,7 +101,7 @@ fun StampDetailsScreen(
                     onClick = onRetake,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.weight(1f),
-                ) { Text("Retake") }
+                ) { Text(stringResource(R.string.stamp_retake)) }
                 Button(
                     onClick = {
                         scope.launch {
@@ -115,7 +117,7 @@ fun StampDetailsScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.tertiary),
                     modifier = Modifier.weight(1f),
-                ) { Text("Save to Book") }
+                ) { Text(stringResource(R.string.stamp_save_to_book)) }
             }
         },
     ) { padding ->
@@ -134,37 +136,37 @@ fun StampDetailsScreen(
             ) {
                 StampImage(
                     imageUri = uri,
-                    contentDescription = "Cropped stamp preview",
+                    contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
             Spacer(Modifier.height(24.dp))
 
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Title", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.stamp_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.weight(1f))
-                Text("Optional", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.stamp_optional), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                placeholder = { Text("Give it a title") },
+                placeholder = { Text(stringResource(R.string.stamp_give_title)) },
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Caption", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(R.string.stamp_caption), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.weight(1f))
-                Text("Optional", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.stamp_optional), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = caption,
                 onValueChange = { caption = it },
-                placeholder = { Text("What do you see?") },
+                placeholder = { Text(stringResource(R.string.stamp_what_see)) },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -175,7 +177,7 @@ fun StampDetailsScreen(
             val extraCollections = collections.filter { !it.isDefault }
             if (extraCollections.isNotEmpty()) {
                 Text(
-                    "Also add to...",
+                    stringResource(R.string.stamp_also_add),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -198,7 +200,7 @@ fun StampDetailsScreen(
                     ) {
                         Text(c.name, style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.weight(1f))
-                        if (isSel) Text("Selected", style = MaterialTheme.typography.labelSmall)
+                        if (isSel) Text(stringResource(R.string.stamp_selected), style = MaterialTheme.typography.labelSmall)
                     }
                     Spacer(Modifier.height(6.dp))
                 }

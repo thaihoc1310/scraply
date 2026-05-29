@@ -56,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -135,13 +136,13 @@ private fun PermissionRequest(onRequestPermission: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "Scraply needs camera access to capture stamps.",
+            text = stringResource(R.string.camera_permission_rationale),
             color = Color.White,
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = onRequestPermission) {
-            Text("Grant permission")
+            Text(stringResource(R.string.grant_permission))
         }
     }
 }
@@ -484,7 +485,7 @@ private fun CameraContent(
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = "Pinch to zoom",
+                text = stringResource(R.string.stamp_pinch_to_zoom),
                 color = Color.White.copy(alpha = 0.8f),
                 style = MaterialTheme.typography.labelSmall,
             )

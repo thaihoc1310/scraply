@@ -28,6 +28,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -79,11 +81,11 @@ fun CommentsPanel(
             ) {
                 if (onBack != null) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.calendar_back))
                     }
                 }
                 Text(
-                    "Comments",
+                    stringResource(R.string.feed_comments),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -115,7 +117,7 @@ fun CommentsPanel(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        "No comments yet",
+                        stringResource(R.string.feed_no_comments),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -142,7 +144,7 @@ fun CommentsPanel(
         ) {
             if (!authState.isSignedIn) {
                 Text(
-                    "Sign in to add a comment.",
+                    stringResource(R.string.feed_signin_comment),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -155,7 +157,7 @@ fun CommentsPanel(
                     value = state.input,
                     onValueChange = { vm.updateInput(it) },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Write a comment...") },
+                    placeholder = { Text(stringResource(R.string.feed_write_comment)) },
                     enabled = authState.isSignedIn && !state.sending,
                     maxLines = 3,
                 )
@@ -164,7 +166,7 @@ fun CommentsPanel(
                     onClick = { vm.submitComment() },
                     enabled = authState.isSignedIn && state.input.isNotBlank() && !state.sending,
                 ) {
-                    Icon(Icons.Filled.Send, contentDescription = "Send")
+                    Icon(Icons.Filled.Send, contentDescription = stringResource(R.string.feed_send))
                 }
             }
             if (state.error != null) {
@@ -209,7 +211,7 @@ private fun CommentRow(comment: FeedComment) {
         }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            val authorName = comment.username?.takeIf { it.isNotBlank() } ?: "Someone"
+            val authorName = comment.username?.takeIf { it.isNotBlank() } ?: stringResource(R.string.feed_anonymous_author)
             Text(
                 authorName,
                 style = MaterialTheme.typography.bodyMedium,

@@ -12,6 +12,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
@@ -32,6 +33,7 @@ data class FeedPost(
     val likedByMe: Boolean = false,
     val savedByMe: Boolean = false,
     val previewComments: List<FeedComment> = emptyList(),
+    val likedAt: Long = 0L,
 )
 
 data class FeedComment(
@@ -49,6 +51,21 @@ data class FeedLikeUser(
     val displayName: String?,
     val avatarUrl: String?,
     val likedAt: Long,
+)
+
+data class CommentSubItem(
+    val commentId: String,
+    val text: String,
+    val createdAt: Long,
+)
+
+data class UserCommentGroup(
+    val postId: String,
+    val postTitle: String?,
+    val postImageUrl: String?,
+    val postAuthorName: String?,
+    val postAuthorAvatarUrl: String?,
+    val comments: List<CommentSubItem>,
 )
 
 /**
@@ -326,9 +343,11 @@ class SocialRepository(
             async {
                 val likeRef = postsRef.document(post.id).collection("likes").document(currentUid)
                 val saveRef = postsRef.document(post.id).collection("saves").document(currentUid)
-                val likedByMe = runCatching { likeRef.get().await().exists() }.getOrDefault(false)
+                val likeSnap = runCatching { likeRef.get().await() }.getOrNull()
+                val likedByMe = likeSnap?.exists() ?: false
+                val likedAt = likeSnap?.getTimestamp("createdAt")?.toDate()?.time ?: 0L
                 val savedByMe = runCatching { saveRef.get().await().exists() }.getOrDefault(false)
-                post.copy(likedByMe = likedByMe, savedByMe = savedByMe)
+                post.copy(likedByMe = likedByMe, savedByMe = savedByMe, likedAt = likedAt)
             }
         }.awaitAll()
     }
@@ -351,6 +370,7 @@ class SocialRepository(
                 likedByMe = engagementPost?.likedByMe ?: post.likedByMe,
                 savedByMe = engagementPost?.savedByMe ?: post.savedByMe,
                 previewComments = previewPost?.previewComments ?: post.previewComments,
+                likedAt = engagementPost?.likedAt ?: post.likedAt,
             )
         }
 
@@ -525,5 +545,84 @@ class SocialRepository(
             }
             true
         }
+    }
+
+    fun observeUserComments(uid: String, limit: Long): Flow<List<UserCommentGroup>> = callbackFlow {
+        val query = firestore.collectionGroup("comments")
+            .whereEqualTo("userId", uid)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit)
+
+        val reg = query.addSnapshotListener { snap, err ->
+            if (err != null || snap == null) {
+                trySend(emptyList())
+                return@addSnapshotListener
+            }
+            launch {
+                val rawComments = snap.documents.mapNotNull { d ->
+                    val commentId = d.id
+                    val text = d.getString("text") ?: ""
+                    val createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L
+                    
+                    val postDocRef = d.reference.parent.parent ?: return@mapNotNull null
+                    val postId = postDocRef.id
+                    
+                    Triple(commentId, text, createdAt) to postId
+                }
+                
+                val postIds = rawComments.map { it.second }.distinct()
+                val postsMap = postIds.map { postId ->
+                    async {
+                        val postDocRef = postsRef.document(postId)
+                        val postSnap = runCatching { postDocRef.get().await() }.getOrNull()
+                        if (postSnap != null) {
+                            val postTitle = postSnap.getString("title") ?: postSnap.getString("description")
+                            val postImageUrl = postSnap.getString("imageUrl")
+                            val postAuthorId = postSnap.getString("userId") ?: ""
+                            
+                            val authorSummary = if (postAuthorId.isNotBlank()) userSummaries(listOf(postAuthorId))[postAuthorId] else null
+                            postId to UserCommentGroup(
+                                postId = postId,
+                                postTitle = postTitle,
+                                postImageUrl = postImageUrl,
+                                postAuthorName = authorSummary?.displayName ?: authorSummary?.username ?: postSnap.getString("username"),
+                                postAuthorAvatarUrl = authorSummary?.avatarUrl ?: postSnap.getString("avatarUrl"),
+                                comments = emptyList()
+                            )
+                        } else {
+                            null
+                        }
+                    }
+                }.awaitAll().filterNotNull().toMap()
+                
+                val groupedComments = rawComments.groupBy { it.second }
+                    .mapNotNull { (postId, pairs) ->
+                        val postGroup = postsMap[postId] ?: return@mapNotNull null
+                        
+                        val subItems = pairs.map { (commentData, _) ->
+                            CommentSubItem(
+                                commentId = commentData.first,
+                                text = commentData.second,
+                                createdAt = commentData.third
+                            )
+                        }.sortedBy { it.createdAt }
+                        
+                        postGroup.copy(comments = subItems)
+                    }
+                
+                val sortedGroups = groupedComments.sortedByDescending { group ->
+                    group.comments.maxOfOrNull { it.createdAt } ?: 0L
+                }
+                
+                trySend(sortedGroups)
+            }
+        }
+        awaitClose { reg.remove() }
+    }
+
+    suspend fun deleteComment(postId: String, commentId: String) {
+        val doc = postsRef.document(postId).collection("comments").document(commentId)
+        doc.delete().await()
+        postsRef.document(postId).update("commentCount", FieldValue.increment(-1)).await()
     }
 }

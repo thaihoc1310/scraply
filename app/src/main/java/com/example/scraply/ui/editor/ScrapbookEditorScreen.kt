@@ -3,6 +3,7 @@ package com.example.scraply.ui.editor
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -104,6 +105,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -163,7 +166,7 @@ fun ScrapbookEditorScreen(
     LaunchedEffect(publishState) {
         when (val s = publishState) {
             is PublishState.Success -> {
-                Toast.makeText(context, "Published to feed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.editor_published_toast), Toast.LENGTH_SHORT).show()
                 vm.dismissPublishState()
             }
             is PublishState.Error -> {
@@ -238,7 +241,7 @@ fun ScrapbookEditorScreen(
             ) {
                 CircleIconButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.calendar_back),
                     onClick = {
                         vm.saveCurrent()
                         onBack()
@@ -263,7 +266,7 @@ fun ScrapbookEditorScreen(
                 ) {
                     CircleIconButton(
                         icon = Icons.Filled.Wallpaper,
-                        contentDescription = "Backgrounds",
+                        contentDescription = stringResource(R.string.editor_background),
                         onClick = { showBackgrounds = true },
                     )
                     Spacer(Modifier.width(10.dp))
@@ -272,7 +275,7 @@ fun ScrapbookEditorScreen(
                         var topMenuOpen by remember { mutableStateOf(false) }
                         CircleIconButton(
                             icon = Icons.Filled.MoreHoriz,
-                            contentDescription = "More options",
+                            contentDescription = stringResource(R.string.close),
                             onClick = { topMenuOpen = true }
                         )
                         ScraplyDropdownMenu(
@@ -280,7 +283,7 @@ fun ScrapbookEditorScreen(
                             onDismissRequest = { topMenuOpen = false }
                         ) {
                             ScraplyDropdownMenuItem(
-                                label = "Share",
+                                label = stringResource(R.string.editor_share),
                                 icon = Icons.Filled.IosShare,
                                 onClick = { 
                                     topMenuOpen = false
@@ -295,13 +298,13 @@ fun ScrapbookEditorScreen(
                                             }
                                             context.startActivity(Intent.createChooser(intent, "Share Scrapbook"))
                                         } else {
-                                            Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.editor_share_failed_toast), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
                             )
                             ScraplyDropdownMenuItem(
-                                label = "Save to photos",
+                                label = stringResource(R.string.editor_save_photos),
                                 icon = Icons.Filled.Download,
                                 onClick = {
                                     topMenuOpen = false
@@ -314,7 +317,7 @@ fun ScrapbookEditorScreen(
                                         )
                                         Toast.makeText(
                                             context,
-                                            if (saved) "Saved to Pictures/Scraply" else "Could not save image",
+                                            if (saved) context.getString(R.string.editor_save_success_toast) else context.getString(R.string.editor_save_failed_toast),
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                     }
@@ -322,7 +325,7 @@ fun ScrapbookEditorScreen(
                             )
                             if (vm.canPublish) {
                                 ScraplyDropdownMenuItem(
-                                    label = "Publish to feed",
+                                    label = stringResource(R.string.editor_publish_feed),
                                     icon = Icons.Filled.Public,
                                     onClick = { 
                                         topMenuOpen = false
@@ -444,7 +447,7 @@ fun ScrapbookEditorScreen(
                 ) {
                     Icon(Icons.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Undo")
+                    Text(stringResource(R.string.editor_undo))
                 }
                 selectedId?.let { id ->
                     val sel = canvas.elements.firstOrNull { it.id == id }
@@ -474,7 +477,7 @@ fun ScrapbookEditorScreen(
                             ) {
                                 Icon(Icons.Filled.Brush, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Style")
+                                Text(stringResource(R.string.editor_background_tab_style))
                             }
                         } else {
                             OutlinedButton(
@@ -486,7 +489,7 @@ fun ScrapbookEditorScreen(
                             ) {
                                 Icon(Icons.Filled.Flip, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Flip")
+                                Text(stringResource(R.string.editor_flip))
                             }
                         }
                         OutlinedButton(
@@ -501,7 +504,7 @@ fun ScrapbookEditorScreen(
                                 tint = MaterialTheme.colorScheme.error,
                             )
                             Spacer(Modifier.width(4.dp))
-                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.editor_delete), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -524,7 +527,7 @@ fun ScrapbookEditorScreen(
                 onAddText = {
                     fabExpanded = false
                     val font = FontPresets.first().first
-                    vm.addElement(type = CanvasElementType.TEXT, assetKey = font, text = "Text")
+                    vm.addElement(type = CanvasElementType.TEXT, assetKey = font, text = "")
                     val id = vm.canvas.value.elements.lastOrNull()?.id
                     if (id != null) {
                         vm.updateElement(id) { it.copy(font = font) }
@@ -544,7 +547,7 @@ fun ScrapbookEditorScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
                     Spacer(Modifier.height(12.dp))
-                    Text("Publishing to feed…", color = Color.White)
+                    Text(stringResource(R.string.editor_publishing_overlay), color = Color.White)
                 }
             }
         }
@@ -570,7 +573,7 @@ fun ScrapbookEditorScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "Publish to Feed",
+                    stringResource(R.string.editor_publish_feed),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -578,7 +581,7 @@ fun ScrapbookEditorScreen(
 
                 Image(
                     bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Preview",
+                    contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth(0.6f)
                         .aspectRatio(canvasSize.width.toFloat() / canvasSize.height.toFloat())
@@ -591,7 +594,7 @@ fun ScrapbookEditorScreen(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { if (it.length <= 1000) title = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.stamp_title)) },
                     leadingIcon = { Icon(Icons.Filled.Edit, null) },
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = { Text("${title.length}/1000") },
@@ -603,7 +606,7 @@ fun ScrapbookEditorScreen(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { if (it.length <= 1000) description = it },
-                    label = { Text("Description") },
+                    label = { Text(stringResource(R.string.stamp_caption)) },
                     leadingIcon = {
                         Icon(
                             Icons.Filled.ChatBubble,
@@ -624,7 +627,7 @@ fun ScrapbookEditorScreen(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = { showPublishPreview = null }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.feed_cancel))
                     }
                     Spacer(Modifier.width(16.dp))
                     Button(
@@ -633,7 +636,7 @@ fun ScrapbookEditorScreen(
                             showPublishPreview = null
                         }
                     ) {
-                        Text("Publish")
+                        Text(stringResource(R.string.feed_post))
                     }
                 }
             }
@@ -858,12 +861,13 @@ private fun AspectRatioPickerContent(
     sheetState: SheetState,
     onRatioChange: (Float) -> Unit,
 ) {
+    val isVi = Locale.getDefault().language == "vi"
     val options = listOf(
-        AspectRatioOption("9:16", 0.5625f, "Portrait (Stories / Reels)"),
-        AspectRatioOption("3:4", 0.75f, "Portrait (Instagram / Standard)"),
-        AspectRatioOption("1:1", 1f, "Square (Feed post)"),
-        AspectRatioOption("4:3", 1.333f, "Landscape (Classic photography)"),
-        AspectRatioOption("16:9", 1.777f, "Cinematic (Widescreen)"),
+        AspectRatioOption("9:16", 0.5625f, if (isVi) "Dọc (Tin / Reels)" else "Portrait (Stories / Reels)"),
+        AspectRatioOption("3:4", 0.75f, if (isVi) "Dọc (Instagram / Tiêu chuẩn)" else "Portrait (Instagram / Standard)"),
+        AspectRatioOption("1:1", 1f, if (isVi) "Vuông (Bảng tin)" else "Square (Feed post)"),
+        AspectRatioOption("4:3", 1.333f, if (isVi) "Ngang (Cổ điển)" else "Landscape (Classic photography)"),
+        AspectRatioOption("16:9", 1.777f, if (isVi) "Điện ảnh (Màn rộng)" else "Cinematic (Widescreen)"),
     )
     val scrollState = rememberScrollState()
 
@@ -962,7 +966,7 @@ private fun BackgroundsSheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Background",
+                    stringResource(R.string.editor_background),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -975,7 +979,7 @@ private fun BackgroundsSheet(
                         }
                     },
                     shape = RoundedCornerShape(18.dp),
-                ) { Text("Done") }
+                ) { Text(stringResource(R.string.settings_done)) }
             }
             Spacer(Modifier.height(12.dp))
             Row(
@@ -986,7 +990,10 @@ private fun BackgroundsSheet(
             ) {
                 BackgroundTab.entries.forEach { t ->
                     TabChip(
-                        label = t.label,
+                        label = stringResource(
+                            if (t == BackgroundTab.Style) R.string.editor_background_tab_style
+                            else R.string.editor_background_tab_ratio
+                        ),
                         selected = tab == t,
                         onClick = { tab = t },
                         modifier = Modifier.weight(1f),
@@ -1047,7 +1054,7 @@ private fun AssetsOnlySheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Assets",
+                    stringResource(R.string.editor_assets),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1060,7 +1067,7 @@ private fun AssetsOnlySheet(
                         }
                     },
                     shape = RoundedCornerShape(18.dp),
-                ) { Text("Done") }
+                ) { Text(stringResource(R.string.settings_done)) }
             }
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f)) {
@@ -1110,7 +1117,7 @@ private fun TextStyleSheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Text Style",
+                    stringResource(R.string.editor_text_style),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1118,7 +1125,7 @@ private fun TextStyleSheet(
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(18.dp),
-                ) { Text("Done") }
+                ) { Text(stringResource(R.string.settings_done)) }
             }
             Spacer(Modifier.height(12.dp))
             Row(
@@ -1129,7 +1136,10 @@ private fun TextStyleSheet(
             ) {
                 TextStyleTab.entries.forEach { t ->
                     TabChip(
-                        label = t.label,
+                        label = stringResource(
+                            if (t == TextStyleTab.Font) R.string.editor_font
+                            else R.string.editor_color
+                        ),
                         selected = tab == t,
                         onClick = { tab = t },
                         modifier = Modifier.weight(1f),
@@ -1161,7 +1171,7 @@ private fun FontPresetsContent(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            "Font Presets",
+            stringResource(R.string.editor_font),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1186,7 +1196,7 @@ private fun FontPresetsContent(
                         style = MaterialTheme.typography.titleMedium.copy(fontFamily = fontFamily),
                     )
                     Text(
-                        "The quick brown fox jumps over the lazy dog",
+                        if (Locale.getDefault().language == "vi") "Một con cáo nâu nhanh nhẹn nhảy qua một con chó lười" else "The quick brown fox jumps over the lazy dog",
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = fontFamily),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1214,7 +1224,7 @@ private fun ColorPickerContent(
     )
     Column {
         Text(
-            "Text Color",
+            stringResource(R.string.editor_color),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1241,7 +1251,7 @@ private fun ColorPickerContent(
                         if (currentColor == c) {
                             Icon(
                                 Icons.Default.Check,
-                                contentDescription = "Selected",
+                                contentDescription = stringResource(R.string.stamp_selected),
                                 tint = if (c == 0xFFFFFFFFL.toLong()) Color.Black else Color.White,
                                 modifier = Modifier.size(22.dp),
                             )
@@ -1300,7 +1310,7 @@ private fun ExpandableFab(
         ) {
             FabSubButton(
                 icon = Icons.Filled.TextFields,
-                label = "Add Text",
+                label = stringResource(R.string.editor_text_style),
                 onClick = onAddText,
             )
         }
@@ -1325,7 +1335,7 @@ private fun ExpandableFab(
         ) {
             FabSubButton(
                 icon = Icons.Filled.Dashboard,
-                label = "Add Assets",
+                label = stringResource(R.string.editor_assets),
                 onClick = onAddAssets,
             )
         }
@@ -1350,7 +1360,7 @@ private fun ExpandableFab(
         ) {
             FabSubButton(
                 icon = Icons.Filled.PhotoLibrary,
-                label = "Add Stamp",
+                label = stringResource(R.string.tab_stamp),
                 onClick = onAddStamp,
             )
         }
@@ -1367,7 +1377,7 @@ private fun ExpandableFab(
         ) {
             Icon(
                 Icons.Filled.Add,
-                contentDescription = if (expanded) "Close" else "Add",
+                contentDescription = if (expanded) stringResource(R.string.close) else null,
                 modifier = Modifier.graphicsLayer { rotationZ = rotation },
             )
         }
@@ -1494,17 +1504,17 @@ private fun AssetCategoriesList(
             .verticalScroll(scrollState)
             .scrollFirstThenDragSheet(scrollState, sheetState)
     ) {
-        AssetCategorySection(title = "Tape Pack", assets = TapeAssets, onPick = onPick)
+        AssetCategorySection(title = stringResource(R.string.editor_tape_pack), assets = TapeAssets, onPick = onPick)
         Spacer(Modifier.height(12.dp))
-        AssetCategorySection(title = "Sticker Pack", assets = StickerAssets, onPick = onPick)
+        AssetCategorySection(title = stringResource(R.string.editor_sticker_pack), assets = StickerAssets, onPick = onPick)
         Spacer(Modifier.height(12.dp))
         AssetCategorySection(
-            title = "Polaroid Frame",
+            title = stringResource(R.string.editor_polaroid_frame),
             assets = listOf(AssetOption("polaroid", "Classic Polaroid", CanvasElementType.POLAROID)),
             onPick = onPick,
         )
         Spacer(Modifier.height(12.dp))
-        AssetCategorySection(title = "Paper Cuts", assets = PaperCutAssets, onPick = onPick)
+        AssetCategorySection(title = stringResource(R.string.editor_paper_cuts), assets = PaperCutAssets, onPick = onPick)
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -1526,7 +1536,7 @@ private fun AssetCategorySection(
         )
         Spacer(Modifier.weight(1f))
         Text(
-            "${assets.size} styles",
+            stringResource(R.string.editor_assets_styles, assets.size),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1568,8 +1578,15 @@ private fun AssetCategorySection(
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
+                            val assetLabel = when (a.type) {
+                                CanvasElementType.TAPE -> stringResource(R.string.editor_tape_label, a.key.removePrefix("tape_").toInt())
+                                CanvasElementType.STICKER -> stringResource(R.string.editor_sticker_label, a.key.removePrefix("sticker_").toInt())
+                                CanvasElementType.POLAROID -> stringResource(R.string.editor_classic_polaroid)
+                                CanvasElementType.PAPER_CUT -> stringResource(R.string.editor_papercut_label, a.key.removePrefix("papercut_").toInt())
+                                else -> a.label
+                            }
                             Text(
-                                a.label,
+                                assetLabel,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -1594,13 +1611,13 @@ private fun StampPickerDialog(
     onDismiss: () -> Unit,
 ) {
     ScraplyDialog(
-        title = "Pick a stamp",
+        title = stringResource(R.string.editor_pick_stamp),
         onDismissRequest = onDismiss,
         maxWidth = 460.dp,
         content = {
             if (stamps.isEmpty()) {
                 Text(
-                    "You have no stamps yet.",
+                    stringResource(R.string.editor_no_stamps),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1649,7 +1666,7 @@ private fun StampPickerDialog(
             }
         },
         actions = {
-            ScraplyDialogConfirmButton(label = "Close", onClick = onDismiss)
+            ScraplyDialogConfirmButton(label = stringResource(R.string.editor_close), onClick = onDismiss)
         },
     )
 }
