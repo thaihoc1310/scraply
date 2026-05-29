@@ -69,11 +69,12 @@ class ProfileViewModel(
         postsJob = social.observeMyPosts(uid)
             .onEach { rawPosts ->
                 val currentPosts = _profile.value.myPosts
+                val isInitialLoad = currentPosts.isEmpty()
                 val mergedPosts = rawPosts.map { post ->
                     val existing = currentPosts.firstOrNull { it.id == post.id }
                     var updated = post.copy(
-                        username = existing?.username,
-                        avatarUrl = existing?.avatarUrl,
+                        username = existing?.username ?: post.username,
+                        avatarUrl = existing?.avatarUrl ?: post.avatarUrl,
                         likedByMe = existing?.likedByMe ?: post.likedByMe,
                         savedByMe = existing?.savedByMe ?: post.savedByMe,
                         previewComments = existing?.previewComments.orEmpty(),
@@ -87,11 +88,11 @@ class ProfileViewModel(
                     }
                     updated
                 }
-                _profile.value = _profile.value.copy(myPosts = mergedPosts)
+                if (!isInitialLoad) {
+                    _profile.value = _profile.value.copy(myPosts = mergedPosts)
+                }
 
-                val hydrated = runCatching { social.hydratePostAuthors(mergedPosts) }.getOrDefault(mergedPosts)
-                val enriched = runCatching { social.hydratePostEngagement(uid, hydrated) }.getOrDefault(hydrated)
-                val withPreviews = runCatching { social.hydratePostCommentPreviews(enriched) }.getOrDefault(enriched)
+                val withPreviews = runCatching { social.hydrateFeedSnapshot(uid, mergedPosts, rank = false) }.getOrDefault(mergedPosts)
                 _profile.value = _profile.value.copy(myPosts = withPreviews)
             }
             .launchIn(viewModelScope)

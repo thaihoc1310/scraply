@@ -8,9 +8,12 @@ import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 
 data class FeedPost(
@@ -67,12 +70,19 @@ class SocialRepository(
     private val postsRef = firestore.collection("published_scrapbooks")
     private val followsRef = firestore.collection("follows")
     private val usersRef = firestore.collection("users")
+    private val userSummaryLock = Mutex()
+    private val userSummaryCache = mutableMapOf<String, UserSummary>()
+
+    private data class UserSummary(
+        val username: String?,
+        val displayName: String?,
+        val avatarUrl: String?,
+    )
 
     private suspend fun actorProfile(uid: String): Triple<String?, String?, String?> {
-        val snap = runCatching { usersRef.document(uid).get().await() }.getOrNull() ?: return Triple(null, null, null)
-        val name = snap.getString("displayName") ?: snap.getString("username")
-        val avatar = snap.getString("avatarUrl")
-        return Triple(uid, name, avatar)
+        val summary = userSummaries(listOf(uid))[uid] ?: return Triple(uid, null, null)
+        val name = summary.displayName ?: summary.username
+        return Triple(uid, name, summary.avatarUrl)
     }
 
     private suspend fun postSummary(postId: String): Pair<String?, String?> {
@@ -97,12 +107,15 @@ class SocialRepository(
         val docRef = postsRef.document()
         val postId = docRef.id
         val imageUrl = storage.uploadPostImage(uid, postId, localImagePath)
+        val (_, actorName, actorAvatar) = actorProfile(uid)
         val data = mutableMapOf<String, Any?>(
             "id" to postId,
             "projectId" to projectId,
             "imageUrl" to imageUrl,
             "canvasJson" to canvasJson,
             "userId" to uid,
+            "username" to actorName,
+            "avatarUrl" to actorAvatar,
             "likeCount" to 0L,
             "commentCount" to 0L,
             "createdAt" to FieldValue.serverTimestamp(),
@@ -131,8 +144,8 @@ class SocialRepository(
                         imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
                         canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
                         userId = d.getString("userId") ?: return@mapNotNull null,
-                        username = null,
-                        avatarUrl = null,
+                        username = d.getString("username"),
+                        avatarUrl = d.getString("avatarUrl"),
                         likeCount = d.getLong("likeCount") ?: 0,
                         commentCount = d.getLong("commentCount") ?: 0,
                         createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
@@ -180,8 +193,8 @@ class SocialRepository(
                     imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
                     canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
                     userId = d.getString("userId") ?: return@mapNotNull null,
-                    username = null,
-                    avatarUrl = null,
+                    username = d.getString("username"),
+                    avatarUrl = d.getString("avatarUrl"),
                     likeCount = d.getLong("likeCount") ?: 0,
                     commentCount = d.getLong("commentCount") ?: 0,
                     createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
@@ -194,45 +207,83 @@ class SocialRepository(
         awaitClose { registration.remove() }
     }
 
+    private suspend fun userSummaries(uids: Collection<String>): Map<String, UserSummary> = coroutineScope {
+        val cleanUids = uids.filter { it.isNotBlank() }.distinct()
+        if (cleanUids.isEmpty()) return@coroutineScope emptyMap()
+
+        val cached = userSummaryLock.withLock {
+            cleanUids.mapNotNull { uid -> userSummaryCache[uid]?.let { uid to it } }.toMap()
+        }
+        val missing = cleanUids.filterNot { it in cached }
+        if (missing.isNotEmpty()) {
+            val loaded = missing.map { uid ->
+                async {
+                    val snap = runCatching { usersRef.document(uid).get().await() }.getOrNull()
+                    uid to snap?.let {
+                        UserSummary(
+                            username = it.getString("username"),
+                            displayName = it.getString("displayName"),
+                            avatarUrl = it.getString("avatarUrl"),
+                        )
+                    }
+                }
+            }.awaitAll()
+                .mapNotNull { (uid, summary) -> summary?.let { uid to it } }
+
+            if (loaded.isNotEmpty()) {
+                userSummaryLock.withLock {
+                    loaded.forEach { (uid, summary) -> userSummaryCache[uid] = summary }
+                }
+            }
+        }
+
+        userSummaryLock.withLock {
+            cleanUids.mapNotNull { uid -> userSummaryCache[uid]?.let { uid to it } }.toMap()
+        }
+    }
+
     suspend fun hydratePostAuthors(posts: List<FeedPost>): List<FeedPost> {
-        val uids = posts.map { it.userId }.distinct()
-        val userDocs = uids.mapNotNull { uid ->
-            runCatching { usersRef.document(uid).get().await() }.getOrNull()
-        }.associateBy { it.id }
+        val uids = posts
+            .filter { it.username.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
+            .map { it.userId }
+            .distinct()
+        val summaries = userSummaries(uids)
         return posts.map { post ->
-            val u = userDocs[post.userId]
+            val summary = summaries[post.userId]
             post.copy(
-                username = u?.getString("username") ?: u?.getString("displayName"),
-                avatarUrl = u?.getString("avatarUrl"),
+                username = summary?.username ?: summary?.displayName ?: post.username,
+                avatarUrl = summary?.avatarUrl ?: post.avatarUrl,
             )
         }
     }
 
     suspend fun hydrateCommentAuthors(comments: List<FeedComment>): List<FeedComment> {
-        val uids = comments.mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }.distinct()
-        val userDocs = uids.mapNotNull { uid ->
-            runCatching { usersRef.document(uid).get().await() }.getOrNull()
-        }.associateBy { it.id }
+        val uids = comments
+            .filter { it.username.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
+            .mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }
+            .distinct()
+        val summaries = userSummaries(uids)
         return comments.map { comment ->
-            val u = userDocs[comment.userId]
+            val summary = summaries[comment.userId]
             comment.copy(
-                username = u?.getString("username") ?: u?.getString("displayName"),
-                avatarUrl = u?.getString("avatarUrl"),
+                username = summary?.username ?: summary?.displayName ?: comment.username,
+                avatarUrl = summary?.avatarUrl ?: comment.avatarUrl,
             )
         }
     }
 
     suspend fun hydrateLikeUsers(likes: List<FeedLikeUser>): List<FeedLikeUser> {
-        val uids = likes.mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }.distinct()
-        val userDocs = uids.mapNotNull { uid ->
-            runCatching { usersRef.document(uid).get().await() }.getOrNull()
-        }.associateBy { it.id }
+        val uids = likes
+            .filter { it.username.isNullOrBlank() || it.displayName.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
+            .mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }
+            .distinct()
+        val summaries = userSummaries(uids)
         return likes.map { like ->
-            val u = userDocs[like.userId]
+            val summary = summaries[like.userId]
             like.copy(
-                username = u?.getString("username"),
-                displayName = u?.getString("displayName"),
-                avatarUrl = u?.getString("avatarUrl"),
+                username = summary?.username ?: like.username,
+                displayName = summary?.displayName ?: like.displayName,
+                avatarUrl = summary?.avatarUrl ?: like.avatarUrl,
             )
         }
     }
@@ -250,8 +301,8 @@ class SocialRepository(
                     FeedComment(
                         id = d.id,
                         userId = d.getString("userId") ?: "",
-                        username = null,
-                        avatarUrl = null,
+                        username = d.getString("username"),
+                        avatarUrl = d.getString("avatarUrl"),
                         text = d.getString("text") ?: "",
                         createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
                     )
@@ -282,10 +333,40 @@ class SocialRepository(
         }.awaitAll()
     }
 
+    suspend fun hydrateFeedSnapshot(currentUid: String, posts: List<FeedPost>, rank: Boolean): List<FeedPost> = coroutineScope {
+        if (posts.isEmpty()) return@coroutineScope posts
+
+        val authors = async { runCatching { hydratePostAuthors(posts) }.getOrDefault(posts) }
+        val engagement = async { runCatching { hydratePostEngagement(currentUid, posts) }.getOrDefault(posts) }
+        val previews = async { runCatching { hydratePostCommentPreviews(posts) }.getOrDefault(posts) }
+        val followed: Deferred<Set<String>>? =
+            if (rank) async { runCatching { followedUserIds(currentUid) }.getOrDefault(emptySet()) } else null
+
+        val engagementById = engagement.await().associateBy { it.id }
+        val previewsById = previews.await().associateBy { it.id }
+        val merged = authors.await().map { post ->
+            val engagementPost = engagementById[post.id]
+            val previewPost = previewsById[post.id]
+            post.copy(
+                likedByMe = engagementPost?.likedByMe ?: post.likedByMe,
+                savedByMe = engagementPost?.savedByMe ?: post.savedByMe,
+                previewComments = previewPost?.previewComments ?: post.previewComments,
+            )
+        }
+
+        val followedIds = followed?.await() ?: return@coroutineScope merged
+        merged.sortedWith(
+            compareByDescending<FeedPost> { it.userId in followedIds }.thenByDescending { it.createdAt }
+        )
+    }
+
+    private suspend fun followedUserIds(currentUid: String): Set<String> =
+        followsRef.whereEqualTo("followerId", currentUid).get().await()
+            .documents.mapNotNull { it.getString("followeeId") }.toSet()
+
     /** Followed-users-first ordering (REQUIREMENTS AC-8.3). */
     suspend fun rankByFollows(currentUid: String, posts: List<FeedPost>): List<FeedPost> {
-        val followed = followsRef.whereEqualTo("followerId", currentUid).get().await()
-            .documents.mapNotNull { it.getString("followeeId") }.toSet()
+        val followed = followedUserIds(currentUid)
         return posts.sortedWith(
             compareByDescending<FeedPost> { it.userId in followed }.thenByDescending { it.createdAt }
         )
@@ -360,9 +441,12 @@ class SocialRepository(
 
     suspend fun addComment(postId: String, uid: String, text: String) {
         val col = postsRef.document(postId).collection("comments")
+        val (_, actorName, actorAvatar) = actorProfile(uid)
         val added = col.add(
             mapOf(
                 "userId" to uid,
+                "username" to actorName,
+                "avatarUrl" to actorAvatar,
                 "text" to text,
                 "createdAt" to FieldValue.serverTimestamp(),
             )
@@ -397,8 +481,8 @@ class SocialRepository(
                         FeedComment(
                             id = d.id,
                             userId = d.getString("userId") ?: "",
-                            username = null,
-                            avatarUrl = null,
+                            username = d.getString("username"),
+                            avatarUrl = d.getString("avatarUrl"),
                             text = d.getString("text") ?: "",
                             createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
                         )

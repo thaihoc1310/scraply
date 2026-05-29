@@ -71,6 +71,7 @@ fun AuthGate(
     val ctx = LocalContext.current
     when {
         !state.firebaseAvailable -> NotConfiguredState()
+        !state.authReady -> AuthResolvingState()
         !state.isSignedIn -> AuthPane(
             state = state,
             headline = signedOutHeadline,
@@ -82,6 +83,13 @@ fun AuthGate(
             onDismissError = { vm.dismissError() },
         )
         else -> content()
+    }
+}
+
+@Composable
+private fun AuthResolvingState() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator()
     }
 }
 

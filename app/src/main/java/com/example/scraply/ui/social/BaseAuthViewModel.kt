@@ -18,6 +18,7 @@ enum class AuthMode { SignIn, SignUp }
 data class AuthUiState(
     val isSignedIn: Boolean = false,
     val user: ScraplyUser? = null,
+    val authReady: Boolean = false,
     val loading: Boolean = false,
     val error: String? = null,
     val info: String? = null,
@@ -36,14 +37,17 @@ abstract class BaseAuthViewModel(
 ) : ViewModel() {
 
     protected val _auth = MutableStateFlow(
-        AuthUiState(firebaseAvailable = authRepository != null)
+        AuthUiState(
+            firebaseAvailable = authRepository != null,
+            authReady = authRepository == null,
+        )
     )
     val authState: StateFlow<AuthUiState> = _auth.asStateFlow()
 
     init {
         authRepository?.currentUserFlow()
             ?.onEach { u ->
-                _auth.value = _auth.value.copy(isSignedIn = u != null, user = u)
+                _auth.value = _auth.value.copy(authReady = true, isSignedIn = u != null, user = u)
                 onAuthUserChanged(u)
             }
             ?.launchIn(viewModelScope)

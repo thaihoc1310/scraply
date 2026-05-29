@@ -146,9 +146,7 @@ fun FeedScreen(
             signedOutSubtext = "Sign in to explore scrapbooks from the community.",
         ) {
             if (feedState.isLoading && feedState.feed.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                FeedLoadingGrid()
             } else {
                 FeedList(
                     feed = feedState.feed,
@@ -271,9 +269,7 @@ fun FeedPostScreen(
         ) {
             when {
                 feedState.isLoading && feedState.feed.isEmpty() -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+                    FeedPostLoading()
                 }
                 post == null -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -342,6 +338,90 @@ fun FeedPostScreen(
                 showTopBar = false,
                 modifier = Modifier.fillMaxHeight(0.6f),
             )
+        }
+    }
+}
+
+private val FeedPlaceholderRatios = listOf(1.2f, 0.78f, 0.95f, 1.35f, 0.82f, 1.08f)
+
+@Composable
+private fun FeedLoadingGrid() {
+    LazyVerticalStaggeredGrid(
+        columns = StaggeredGridCells.Fixed(2),
+        contentPadding = PaddingValues(
+            start = 6.dp,
+            end = 6.dp,
+            top = 10.dp,
+            bottom = 140.dp,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalItemSpacing = 4.dp,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(FeedPlaceholderRatios) { ratio ->
+            FeedPlaceholderCard(ratio)
+        }
+    }
+}
+
+@Composable
+private fun FeedPlaceholderCard(ratio: Float) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(ratio)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 4.dp, end = 3.dp)
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeedPostLoading() {
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(0.82f)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+                )
+                Spacer(Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.55f)
+                        .height(18.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                )
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.36f)
+                        .height(14.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
+                )
+            }
         }
     }
 }
@@ -636,8 +716,9 @@ fun FeedCard(
                 }
             }
             Spacer(Modifier.width(10.dp))
+            val authorName = post.username?.takeIf { it.isNotBlank() } ?: "Someone"
             Text(
-                post.username ?: post.userId.take(6),
+                authorName,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -978,7 +1059,7 @@ private fun CommentPreviewRow(
     onClick: () -> Unit,
 ) {
     val username = comment.username?.takeIf { it.isNotBlank() }
-        ?: comment.userId.take(6).ifBlank { "Someone" }
+        ?: "Someone"
 
     Text(
         text = buildAnnotatedString {
@@ -1074,7 +1155,7 @@ fun LikesPanel(
 private fun LikeUserRow(like: FeedLikeUser) {
     val name = like.displayName?.takeIf { it.isNotBlank() }
         ?: like.username?.takeIf { it.isNotBlank() }
-        ?: like.userId.take(6)
+        ?: "Someone"
 
     Row(
         modifier = Modifier.fillMaxWidth()

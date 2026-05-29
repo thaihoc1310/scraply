@@ -518,6 +518,7 @@ private fun CameraContent(
                                         source = snapshot,
                                         previewSize = IntSize(snapshot.width, snapshot.height),
                                         cutterScale = 1f,
+                                        includeStroke = true,
                                     )
                                 }
                             }

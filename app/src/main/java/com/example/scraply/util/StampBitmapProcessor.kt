@@ -34,8 +34,9 @@ object StampBitmapProcessor {
         source: Bitmap,
         previewSize: IntSize,
         cutterScale: Float = 1f,
+        includeStroke: Boolean = false,
     ): Bitmap = withContext(Dispatchers.Default) {
-        cutRaw(context, source, previewSize.width, previewSize.height, cutterScale)
+        cutRaw(context, source, previewSize.width, previewSize.height, cutterScale, includeStroke)
     }
 
     /**
@@ -48,9 +49,10 @@ object StampBitmapProcessor {
         previewWidth: Int,
         previewHeight: Int,
         cutterScale: Float = 1f,
+        includeStroke: Boolean = false,
     ): Bitmap {
         if (previewWidth <= 0 || previewHeight <= 0) {
-            return applyMask(context, source)
+            return applyMask(context, source, includeStroke)
         }
 
         // Calculate crop region using LiveStamp's logic
@@ -78,13 +80,13 @@ object StampBitmapProcessor {
         val cropped = Bitmap.createBitmap(source, left, top, finalWidth, finalHeight)
 
         // Apply stamp mask
-        return applyMask(context, cropped)
+        return applyMask(context, cropped, includeStroke)
     }
 
     /**
      * Apply stamp mask using PorterDuff.DST_IN.
      */
-    private fun applyMask(context: Context, source: Bitmap): Bitmap {
+    private fun applyMask(context: Context, source: Bitmap, includeStroke: Boolean): Bitmap {
         val maskDrawable = context.getDrawable(R.drawable.stamp_mask)
             ?: throw IllegalStateException("Stamp mask drawable missing")
 
@@ -100,7 +102,9 @@ object StampBitmapProcessor {
         canvas.drawBitmap(mask, 0f, 0f, paint)
         paint.xfermode = null
 
-        drawStampStroke(context, canvas, source.width, source.height)
+        if (includeStroke) {
+            drawStampStroke(context, canvas, source.width, source.height)
+        }
 
         mask.recycle()
 
@@ -167,8 +171,9 @@ object StampBitmapProcessor {
         source: Bitmap,
         previewSize: IntSize,
         cutterScale: Float = 1f,
+        includeStroke: Boolean = false,
     ): Bitmap {
-        return cutRaw(context, source, previewSize.width, previewSize.height, cutterScale)
+        return cutRaw(context, source, previewSize.width, previewSize.height, cutterScale, includeStroke)
     }
 
     fun rotateToUpright(source: Bitmap, degrees: Int): Bitmap {

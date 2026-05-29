@@ -49,12 +49,13 @@ class FeedViewModel(
                 }
 
                 val currentFeed = _feed.value.feed
+                val isInitialLoad = currentFeed.isEmpty()
                 val merged = raw.map { post ->
                     val existing = currentFeed.find { it.id == post.id }
                     // Preserve existing hydration info (username/avatar) to avoid flickering to encoded IDs
                     var updated = post.copy(
-                        username = existing?.username,
-                        avatarUrl = existing?.avatarUrl,
+                        username = existing?.username ?: post.username,
+                        avatarUrl = existing?.avatarUrl ?: post.avatarUrl,
                         likedByMe = existing?.likedByMe ?: post.likedByMe,
                         savedByMe = existing?.savedByMe ?: post.savedByMe,
                         previewComments = existing?.previewComments.orEmpty(),
@@ -70,14 +71,13 @@ class FeedViewModel(
                     updated
                 }
 
-                // First update with merged/optimistic data so UI stays responsive and names don't flicker
-                _feed.value = _feed.value.copy(feed = merged, isLoading = false)
+                if (!isInitialLoad) {
+                    // Keep subsequent snapshots responsive while preserving already hydrated data.
+                    _feed.value = _feed.value.copy(feed = merged, isLoading = false)
+                }
 
                 // Then perform hydration in background
-                val hydrated = runCatching { social.hydratePostAuthors(merged) }.getOrDefault(merged)
-                val enriched = runCatching { social.hydratePostEngagement(uid, hydrated) }.getOrDefault(hydrated)
-                val withPreviews = runCatching { social.hydratePostCommentPreviews(enriched) }.getOrDefault(enriched)
-                val ranked = runCatching { social.rankByFollows(uid, withPreviews) }.getOrDefault(withPreviews)
+                val ranked = runCatching { social.hydrateFeedSnapshot(uid, merged, rank = true) }.getOrDefault(merged)
                 _feed.value = _feed.value.copy(feed = ranked, isLoading = false)
             }
             .launchIn(viewModelScope)

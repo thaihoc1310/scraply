@@ -209,8 +209,9 @@ private fun CommentRow(comment: FeedComment) {
         }
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
+            val authorName = comment.username?.takeIf { it.isNotBlank() } ?: "Someone"
             Text(
-                comment.username ?: comment.userId.take(6),
+                authorName,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
             )

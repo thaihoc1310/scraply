@@ -264,8 +264,8 @@ object ImageUtils {
         )
 
         if (frameStyle == StampFrameStyle.CLEAN_FRAME) {
-            val insetX = source.width * 0.13f
-            val insetY = source.height * 0.12f
+            val insetX = source.width * 0.08f
+            val insetY = source.height * 0.075f
             val framePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.rgb(250, 246, 235)
             }
