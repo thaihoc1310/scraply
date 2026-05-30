@@ -256,7 +256,7 @@ private fun ProfileHeader(
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                profile?.displayName ?: profile?.username ?: "Scraply user",
+                profile?.displayName ?: profile?.username ?: stringResource(R.string.profile_default_name),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -317,22 +317,22 @@ fun ProfilePostsFeedScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.notif_back))
             }
-            Text("Posts", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.profile_posts), style = MaterialTheme.typography.titleLarge)
         }
 
         AuthGate(
             vm = vm,
-            signedOutHeadline = "Your profile",
-            signedOutSubtext = "Sign in to view your published scrapbooks.",
+            signedOutHeadline = stringResource(R.string.profile_signed_out_headline),
+            signedOutSubtext = stringResource(R.string.profile_signin_view_posts),
         ) {
             val posts = profileState.myPosts
 
             if (posts.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        "You haven't published any scrapbooks yet.",
+                        stringResource(R.string.profile_no_posts),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -429,7 +429,7 @@ private fun ProfilePostsFeedList(
 private fun BellWithBadge(unreadCount: Int, onClick: () -> Unit) {
     Box {
         IconButton(onClick = onClick) {
-            Icon(Icons.Filled.Notifications, contentDescription = "Notifications")
+            Icon(Icons.Filled.Notifications, contentDescription = stringResource(R.string.notif_title))
         }
         if (unreadCount > 0) {
             Box(

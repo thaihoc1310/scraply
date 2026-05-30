@@ -14,6 +14,7 @@ object Routes {
     const val RECENT_LIKES = "recent_likes"
     const val RECENT_COMMENTS = "recent_comments"
     const val EDIT_PROFILE = "edit_profile"
+    const val ABOUT = "about"
     const val COMMENTS = "feed/comments/{postId}"
     const val FEED_POST = "feed/post/{postId}?showComments={showComments}"
     const val PROFILE_POSTS = "profile/posts/{postId}"

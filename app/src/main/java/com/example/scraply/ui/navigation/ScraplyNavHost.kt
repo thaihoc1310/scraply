@@ -43,6 +43,7 @@ import com.example.scraply.ui.stamp.StampCaptureViewModel
 import com.example.scraply.ui.settings.SettingsScreen
 import com.example.scraply.ui.settings.RecentLikesScreen
 import com.example.scraply.ui.settings.RecentCommentsScreen
+import com.example.scraply.ui.settings.AboutScreen
 import com.example.scraply.ui.social.EditProfileScreen
 import com.example.scraply.ui.vm.scraplyViewModel
 
@@ -312,6 +313,9 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     onOpenRecentComments = {
                         navController.navigate(Routes.RECENT_COMMENTS)
                     },
+                    onOpenAbout = {
+                        navController.navigate(Routes.ABOUT)
+                    },
                     onSignOut = {
                         profileVm.signOut()
                     },
@@ -423,6 +427,38 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 EditProfileScreen(
                     onBack = { navController.popBackStack() },
                     viewModel = profileVm
+                )
+            }
+
+            composable(
+                Routes.ABOUT,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                AboutScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

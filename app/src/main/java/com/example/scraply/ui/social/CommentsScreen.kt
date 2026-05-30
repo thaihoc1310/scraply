@@ -233,8 +233,11 @@ private fun CommentRow(comment: FeedComment) {
     }
 }
 
+@Composable
 private fun formatTime(timestamp: Long): String {
     if (timestamp == 0L) return ""
-    val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val pattern = if (locale.language == "vi") "d 'thg' M" else "MMM d"
+    val fmt = SimpleDateFormat(pattern, locale)
     return fmt.format(Date(timestamp))
 }

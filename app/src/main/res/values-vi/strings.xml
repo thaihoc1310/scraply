@@ -60,7 +60,7 @@
 
     <!-- Stamp Capture & Details -->
     <string name="stamp_grant_permission">Cấp quyền truy cập</string>
-    <string name="stamp_pinch_to_zoom">Bóp hai ngón để thu phóng</string>
+    <string name="stamp_pinch_to_zoom">Dùng hai ngón tay để thu phóng</string>
     <string name="stamp_adjust">Điều chỉnh tem</string>
     <string name="stamp_style">Kiểu tem</string>
     <string name="stamp_style_classic">Cổ điển</string>
@@ -81,7 +81,7 @@
     <string name="stamp_what_see">Bạn nhìn thấy điều gì?</string>
     <string name="stamp_also_add">Thêm vào bộ sưu tập...</string>
     <string name="stamp_selected">Đã chọn</string>
-    <string name="stamp_save_to_book">Lưu vào Sách</string>
+    <string name="stamp_save_to_book">Lưu vào bộ sưu tập</string>
 
     <!-- Calendar -->
     <string name="calendar_back">Quay lại</string>
@@ -105,7 +105,7 @@
     <string name="editor_font">Phông chữ</string>
     <string name="editor_color">Màu sắc</string>
     <string name="editor_undo">Hoàn tác</string>
-    <string name="editor_delete">Xóa bỏ</string>
+    <string name="editor_delete">Xóa</string>
     <string name="editor_pick_stamp">Chọn một con tem</string>
     <string name="editor_no_stamps">Bạn chưa có con tem nào</string>
     <string name="editor_close">Đóng</string>
@@ -122,7 +122,7 @@
     <string name="editor_save_failed_toast">Không thể lưu ảnh</string>
     <string name="editor_share_failed_toast">Chia sẻ thất bại</string>
     <string name="editor_publishing_overlay">Đang đăng lên Bảng tin…</string>
-    <string name="editor_background_tab_style">Kiểu dáng</string>
+    <string name="editor_background_tab_style">Kiểu</string>
     <string name="editor_background_tab_ratio">Tỉ lệ</string>
     <string name="editor_tape_pack">Bộ băng keo</string>
     <string name="editor_sticker_pack">Bộ nhãn dán</string>
@@ -130,7 +130,7 @@
     <string name="editor_classic_polaroid">Polaroid cổ điển</string>
     <string name="editor_paper_cuts">Giấy cắt trang trí</string>
     <string name="editor_assets_styles">%1$d kiểu</string>
-    <string name="editor_flip">Lật ảnh</string>
+    <string name="editor_flip">Lật</string>
 
     <!-- Feed / Social -->
     <string name="feed_title">Bảng tin</string>
@@ -183,4 +183,103 @@
     <string name="recent_comments_delete_btn">Xóa (%1$d)</string>
     <string name="recent_comments_empty">Chưa có bình luận nào.</string>
     <string name="recent_comments_delete_hint">Khi bạn thực hiện xóa, những bình luận này sẽ biến mất vĩnh viễn khỏi các bài đăng.</string>
+
+    <!-- Notifications -->
+    <string name="notif_title">Thông báo</string>
+    <string name="notif_back">Quay lại</string>
+    <string name="notif_mark_all_read">Đánh dấu tất cả đã đọc</string>
+    <string name="notif_empty_signed_out_title">Chưa có thông báo nào</string>
+    <string name="notif_empty_signed_out_subtitle">Đăng nhập để xem hoạt động trên scrapbook của bạn.</string>
+    <string name="notif_empty_title">Bạn đã xem hết rồi</string>
+    <string name="notif_empty_subtitle">Lượt thích, bình luận và người theo dõi mới sẽ hiển thị ở đây.</string>
+    <string name="notif_someone">Ai đó</string>
+    <string name="notif_liked_your_scrapbook">đã thích scrapbook của bạn</string>
+    <string name="notif_left_comment">đã để lại bình luận</string>
+    <string name="notif_started_following">đã bắt đầu theo dõi bạn</string>
+    <string name="notif_generic">đã gửi cho bạn một thông báo</string>
+    <string name="time_just_now">vừa xong</string>
+    <string name="time_minutes_ago">%1$d phút trước</string>
+    <string name="time_hours_ago">%1$d giờ trước</string>
+    <string name="time_days_ago">%1$d ngày trước</string>
+
+    <!-- Auth -->
+    <string name="auth_firebase_not_configured">Chưa cấu hình Firebase</string>
+    <string name="auth_firebase_not_configured_desc">Thêm tệp google-services.json vào thư mục app/ và thiết lập default_web_client_id trong res/values/firebase_strings.xml để bật tính năng đăng nhập, bảng tin và đồng bộ đám mây.</string>
+    <string name="auth_create_account_headline">Tạo tài khoản Scraply</string>
+    <string name="auth_create_account_subtext">Đăng ký để chia sẻ scrapbook, theo dõi người sáng tạo và đồng bộ bộ sưu tập.</string>
+    <string name="auth_display_name_label">Tên hiển thị (không bắt buộc)</string>
+    <string name="auth_email_label">Email</string>
+    <string name="auth_password_label">Mật khẩu</string>
+    <string name="auth_forgot_password">Quên mật khẩu?</string>
+    <string name="auth_create_account_btn">Tạo tài khoản</string>
+    <string name="auth_sign_in_btn">Đăng nhập</string>
+    <string name="auth_or_divider">HOẶC</string>
+    <string name="auth_signup_google">Đăng ký với Google</string>
+    <string name="auth_signin_google">Đăng nhập với Google</string>
+    <string name="auth_already_have_account">Đã có tài khoản?</string>
+    <string name="auth_no_account">Chưa có tài khoản?</string>
+    <string name="auth_sign_up_btn">Đăng ký</string>
+
+    <!-- Collections -->
+    <string name="all_stamps">Tất cả tem</string>
+
+    <!-- Background Options -->
+    <string name="bg_chalkboard">Bảng đen</string>
+    <string name="bg_cork_board">Bảng bần</string>
+    <string name="bg_crumpled_white">Giấy trắng nhăn</string>
+    <string name="bg_doodle_galaxy">Ngân hà vẽ tay</string>
+    <string name="bg_floral_paper">Giấy hoa văn</string>
+    <string name="bg_floral_paper_2">Giấy hoa văn 2</string>
+    <string name="bg_grid_green">Ô kẻ xanh lá</string>
+    <string name="bg_kraft_brown">Giấy Kraft nâu</string>
+    <string name="bg_lavender">Mộng mơ Lavender</string>
+    <string name="bg_vintage_old">Hoài cổ xưa</string>
+    <string name="bg_lined_notebook">Tập kẻ ngang</string>
+    <string name="bg_linen_beige">Vải lanh màu be</string>
+    <string name="bg_midnight_blue">Xanh đêm huyền bí</string>
+    <string name="bg_mint_pastel">Bạc hà Pastel</string>
+    <string name="bg_old_newspaper">Báo cũ</string>
+    <string name="bg_pastel_pink">Hồng Pastel</string>
+    <string name="bg_purple_pastel">Tím Pastel</string>
+    <string name="bg_floral_script">Bản viết hoa văn</string>
+    <string name="bg_red_grid">Ô kẻ đỏ ghi chú</string>
+    <string name="bg_starry_night">Đêm đầy sao</string>
+    <string name="bg_vintage_cream">Kem hoài cổ</string>
+    <string name="bg_wood_plank">Mặt bàn gỗ</string>
+
+    <!-- Missing keys from values/strings.xml translated to Vietnamese -->
+    <string name="pinch_to_zoom">Dùng hai ngón tay để thu phóng</string>
+    <string name="retake">Chụp lại</string>
+    <string name="save_to_book">Lưu vào bộ sưu tập</string>
+    <string name="title_hint">Đặt tiêu đề</string>
+    <string name="caption_hint">Chú thích gì đó...</string>
+    <string name="optional">Không bắt buộc</string>
+    <string name="collections">Bộ sưu tập</string>
+    <string name="editor">Trình soạn thảo</string>
+    <string name="projects">Dự án</string>
+    <string name="upload_stamp">Tải tem lên</string>
+    <string name="choose_photo">Chọn ảnh</string>
+    <string name="cut_stamp">Cắt tem</string>
+    <string name="pick_photo_prompt">Chọn một bức ảnh để cắt tem</string>
+    <string name="drag_pinch_hint">Kéo ảnh. Dùng hai ngón tay để thu phóng.</string>
+    <string name="close">Đóng</string>
+    <string name="edit_assets">Chỉnh sửa trang trí</string>
+    <string name="done">Xong</string>
+    <string name="backgrounds">Hình nền</string>
+    <string name="assets">Trang trí</string>
+    <string name="text">Văn bản</string>
+    <string name="camera_permission_rationale">Scraply cần quyền truy cập camera để chụp tem.</string>
+    <string name="grant_permission">Cấp quyền truy cập</string>
+
+    <!-- Additional UI string resources -->
+    <string name="profile_default_name">Người dùng Scraply</string>
+    <string name="profile_signin_view_posts">Đăng nhập để xem các scrapbook đã xuất bản của bạn.</string>
+    <string name="notif_channel_social_name">Hoạt động mạng xã hội</string>
+    <string name="notif_channel_social_desc">Lượt thích, bình luận và theo dõi trên scrapbook của bạn.</string>
+    <string name="stamp_save_changes">Lưu thay đổi</string>
+
+    <!-- About Screen -->
+    <string name="about_title">Về Scraply</string>
+    <string name="about_intro">Scraply được tạo ra với một tầm nhìn đơn giản nhưng đầy tâm huyết: giúp bạn ghi lại, sắp đặt và nâng niu những khoảnh khắc quý giá nhất trong cuộc đời dưới dạng một cuốn sổ lưu niệm thủ công số.\n\nGiữa một thế giới số vội vã nơi ký ức dễ dàng bị chìm lấp trong những dòng thông tin vô tận, Scraply mang đến cho bạn một khoảng lặng sáng tạo đầy nghệ thuật. Bạn có thể tự tay chụp và cắt những con tem độc đáo quanh mình, viết lên những dòng suy ngẫm chân thật và tự do sắp xếp chúng trên các trang giấy cũ đầy hoài niệm. Mỗi trang sổ là một tác phẩm phản chiếu hành trình cá nhân của riêng bạn. Cảm ơn bạn đã lựa chọn Scraply để lưu giữ những câu chuyện tuyệt đẹp của mình!</string>
+    <string name="about_version">Phiên bản 0.3.5 (25)</string>
 </resources>

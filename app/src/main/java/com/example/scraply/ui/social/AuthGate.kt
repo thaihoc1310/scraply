@@ -51,6 +51,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 
 /**
  * Gates [content] behind authentication. Shows either:
@@ -111,10 +113,10 @@ private fun NotConfiguredState() {
                 )
             }
             Spacer(Modifier.height(16.dp))
-            Text("Firebase not configured yet", style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.auth_firebase_not_configured), style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(8.dp))
             Text(
-                "Drop a real google-services.json into app/ and set default_web_client_id in res/values/firebase_strings.xml to enable sign-in, feed, and cloud sync.",
+                stringResource(R.string.auth_firebase_not_configured_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -158,13 +160,13 @@ private fun AuthPane(
         }
         Spacer(Modifier.height(12.dp))
         Text(
-            if (isSignUp) "Create your Scraply account" else headline,
+            if (isSignUp) stringResource(R.string.auth_create_account_headline) else headline,
             style = MaterialTheme.typography.headlineMedium,
         )
         Spacer(Modifier.height(6.dp))
         Text(
             if (isSignUp)
-                "Sign up to publish scrapbooks, follow creators, and sync your collections."
+                stringResource(R.string.auth_create_account_subtext)
             else subtext,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -176,7 +178,7 @@ private fun AuthPane(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it; onDismissError() },
-                label = { Text("Display name (optional)") },
+                label = { Text(stringResource(R.string.auth_display_name_label)) },
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
                 shape = RoundedCornerShape(14.dp),
@@ -188,7 +190,7 @@ private fun AuthPane(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it; onDismissError() },
-            label = { Text("Email") },
+            label = { Text(stringResource(R.string.auth_email_label)) },
             singleLine = true,
             leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -201,7 +203,7 @@ private fun AuthPane(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it; onDismissError() },
-            label = { Text("Password") },
+            label = { Text(stringResource(R.string.auth_password_label)) },
             singleLine = true,
             leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
             trailingIcon = {
@@ -220,7 +222,7 @@ private fun AuthPane(
 
         if (!isSignUp) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { onForgotPassword(email) }) { Text("Forgot password?") }
+                TextButton(onClick = { onForgotPassword(email) }) { Text(stringResource(R.string.auth_forgot_password)) }
             }
         }
 
@@ -250,14 +252,14 @@ private fun AuthPane(
                 )
                 Spacer(Modifier.width(10.dp))
             }
-            Text(if (isSignUp) "Create account" else "Sign in")
+            Text(if (isSignUp) stringResource(R.string.auth_create_account_btn) else stringResource(R.string.auth_sign_in_btn))
         }
 
         Spacer(Modifier.height(20.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             HorizontalDivider(modifier = Modifier.weight(1f))
-            Text("  OR  ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("  ${stringResource(R.string.auth_or_divider)}  ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             HorizontalDivider(modifier = Modifier.weight(1f))
         }
 
@@ -272,7 +274,7 @@ private fun AuthPane(
             GoogleMark(size = 18.dp)
             Spacer(Modifier.width(10.dp))
             Text(
-                if (isSignUp) "Sign up with Google" else "Sign in with Google",
+                if (isSignUp) stringResource(R.string.auth_signup_google) else stringResource(R.string.auth_signin_google),
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
             )
@@ -282,11 +284,11 @@ private fun AuthPane(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (isSignUp) "Already have an account?" else "Don't have an account?",
+                if (isSignUp) stringResource(R.string.auth_already_have_account) else stringResource(R.string.auth_no_account),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            TextButton(onClick = onToggleMode) { Text(if (isSignUp) "Sign in" else "Sign up") }
+            TextButton(onClick = onToggleMode) { Text(if (isSignUp) stringResource(R.string.auth_sign_in_btn) else stringResource(R.string.auth_sign_up_btn)) }
         }
     }
 }

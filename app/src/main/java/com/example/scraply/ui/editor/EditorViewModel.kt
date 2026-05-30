@@ -39,6 +39,11 @@ sealed class PublishState {
     data class Success(val postId: String) : PublishState()
 }
 
+private data class UndoState(
+    val canvasState: CanvasState,
+    val background: String
+)
+
 class EditorViewModel(
     private val appContext: Context,
     private val projectRepository: ProjectRepository,
@@ -73,7 +78,7 @@ class EditorViewModel(
     private val _selectedId = MutableStateFlow<String?>(null)
     val selectedId: StateFlow<String?> = _selectedId.asStateFlow()
 
-    private val undoStack: ArrayDeque<CanvasState> = ArrayDeque()
+    private val undoStack: ArrayDeque<UndoState> = ArrayDeque()
 
     init {
         viewModelScope.launch {
@@ -149,13 +154,29 @@ class EditorViewModel(
     }
 
     private fun pushUndo() {
-        undoStack.addLast(_canvas.value)
+        undoStack.addLast(UndoState(_canvas.value, _background.value))
         if (undoStack.size > 40) undoStack.removeFirst()
     }
 
     fun undo() {
+        if (preTransformState != null) {
+            val editingId = _selectedId.value
+            val editingElement = preTransformState!!.elements.firstOrNull { it.id == editingId }
+            if (editingElement != null && editingElement.type == CanvasElementType.TEXT && editingElement.text.isEmpty()) {
+                // Element was empty before editing started (e.g. newly created)
+                // Discard temporary edit state to allow stack pop to delete it
+                preTransformState = null
+            } else {
+                _canvas.value = preTransformState!!
+                preTransformState = null
+                return
+            }
+        }
+
         if (undoStack.isNotEmpty()) {
-            _canvas.value = undoStack.removeLast()
+            val popped = undoStack.removeLast()
+            _canvas.value = popped.canvasState
+            _background.value = popped.background
         }
     }
 
@@ -178,7 +199,10 @@ class EditorViewModel(
         _selectedId.value = el.id
     }
 
-    fun updateElement(id: String, transform: (CanvasElement) -> CanvasElement) {
+    fun updateElement(id: String, saveUndo: Boolean = false, transform: (CanvasElement) -> CanvasElement) {
+        if (saveUndo) {
+            pushUndo()
+        }
         _canvas.value = _canvas.value.copy(
             elements = _canvas.value.elements.map { if (it.id == id) transform(it) else it },
         )
@@ -195,7 +219,7 @@ class EditorViewModel(
     fun onTransformEnd() {
         preTransformState?.let {
             if (it != _canvas.value) {
-                undoStack.addLast(it)
+                undoStack.addLast(UndoState(it, _background.value))
                 if (undoStack.size > 40) undoStack.removeFirst()
             }
         }
@@ -223,7 +247,10 @@ class EditorViewModel(
         _canvas.value = _canvas.value.copy(
             elements = _canvas.value.elements.filterNot { it.id == id },
         )
-        if (_selectedId.value == id) _selectedId.value = null
+        if (_selectedId.value == id) {
+            _selectedId.value = null
+            preTransformState = null
+        }
     }
 
     suspend fun shareBitmap(bitmap: Bitmap): Uri? = withContext(Dispatchers.IO) {

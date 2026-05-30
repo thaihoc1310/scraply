@@ -36,10 +36,10 @@ object ScraplyNotifications {
         if (manager.getNotificationChannel(CHANNEL_SOCIAL) != null) return
         val channel = NotificationChannel(
             CHANNEL_SOCIAL,
-            CHANNEL_SOCIAL_NAME,
+            context.getString(R.string.notif_channel_social_name),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = CHANNEL_SOCIAL_DESCRIPTION
+            description = context.getString(R.string.notif_channel_social_desc)
             enableLights(true)
             enableVibration(true)
         }

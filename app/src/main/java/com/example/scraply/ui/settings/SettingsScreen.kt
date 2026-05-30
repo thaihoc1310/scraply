@@ -56,6 +56,7 @@ fun SettingsScreen(
     onEditProfile: () -> Unit,
     onOpenRecentLikes: () -> Unit,
     onOpenRecentComments: () -> Unit,
+    onOpenAbout: () -> Unit,
     onSignOut: () -> Unit,
     settingsVm: SettingsViewModel = scraplyViewModel(),
 ) {
@@ -180,7 +181,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Filled.Info,
                     label = stringResource(R.string.settings_about),
-                    onClick = { /* No-op placeholder */ }
+                    onClick = onOpenAbout
                 )
             }
 
@@ -207,7 +208,7 @@ fun SettingsScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Version 0.3.5 (25)",
+                    text = stringResource(R.string.about_version),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )

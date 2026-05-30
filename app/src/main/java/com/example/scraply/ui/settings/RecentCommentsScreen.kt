@@ -323,7 +323,7 @@ private fun RecentCommentGroupCard(
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = group.postAuthorName ?: "Someone",
+                            text = group.postAuthorName ?: stringResource(R.string.notif_someone),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface

@@ -94,10 +94,18 @@ class MainActivity : ComponentActivity() {
     private fun applyLocale(langCode: String) {
         val locale = Locale(langCode)
         Locale.setDefault(locale)
+        
+        // Update Activity resources
         val config = Configuration(resources.configuration)
         config.setLocale(locale)
         @Suppress("DEPRECATION")
         resources.updateConfiguration(config, resources.displayMetrics)
+        
+        // Update Application resources to support popups, dialogs and sheets
+        val appConfig = Configuration(applicationContext.resources.configuration)
+        appConfig.setLocale(locale)
+        @Suppress("DEPRECATION")
+        applicationContext.resources.updateConfiguration(appConfig, applicationContext.resources.displayMetrics)
     }
 
     private fun createLocalizedContext(langCode: String): Context {

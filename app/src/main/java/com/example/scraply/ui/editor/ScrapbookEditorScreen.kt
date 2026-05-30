@@ -186,7 +186,7 @@ fun ScrapbookEditorScreen(
     var showAssetsSheet by remember { mutableStateOf(false) }
     var showTextStyle by remember { mutableStateOf(false) }
     var textStyleElementId by remember { mutableStateOf<String?>(null) }
-    var showStampPicker by remember { mutableStateOf<PickerMode?>(null) }
+    var showStampPicker: PickerMode? by remember { mutableStateOf(null) }
     var editingText by remember { mutableStateOf<String?>(null) }
     var showPublishPreview by remember { mutableStateOf<Bitmap?>(null) }
     var fabExpanded by remember { mutableStateOf(false) }
@@ -435,15 +435,17 @@ fun ScrapbookEditorScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
+                horizontalArrangement = if (selectedId != null) Arrangement.SpaceBetween else Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
-                    onClick = { vm.undo() },
+                    onClick = {
+                        vm.undo()
+                        endInlineTextEdit()
+                    },
                     shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                 ) {
                     Icon(Icons.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
@@ -455,14 +457,14 @@ fun ScrapbookEditorScreen(
                         OutlinedButton(
                             onClick = { vm.bringToFront(id) },
                             shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Icon(Icons.Filled.FlipToFront, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         OutlinedButton(
                             onClick = { vm.sendToBack(id) },
                             shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Icon(Icons.Filled.FlipToBack, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
@@ -473,7 +475,7 @@ fun ScrapbookEditorScreen(
                                     showTextStyle = true
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
                             ) {
                                 Icon(Icons.Filled.Brush, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
@@ -482,10 +484,10 @@ fun ScrapbookEditorScreen(
                         } else {
                             OutlinedButton(
                                 onClick = {
-                                    vm.updateElement(id) { it.copy(isFlipped = !it.isFlipped) }
+                                    vm.updateElement(id, saveUndo = true) { it.copy(isFlipped = !it.isFlipped) }
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
                             ) {
                                 Icon(Icons.Filled.Flip, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
@@ -495,7 +497,7 @@ fun ScrapbookEditorScreen(
                         OutlinedButton(
                             onClick = { vm.deleteElement(id) },
                             shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Icon(
                                 Icons.Filled.Delete,
@@ -675,10 +677,10 @@ fun ScrapbookEditorScreen(
             TextStyleSheet(
                 element = textEl,
                 onFontChange = { font ->
-                    vm.updateElement(textEl.id) { it.copy(font = font) }
+                    vm.updateElement(textEl.id, saveUndo = true) { it.copy(font = font) }
                 },
                 onColorChange = { color ->
-                    vm.updateElement(textEl.id) { it.copy(color = color) }
+                    vm.updateElement(textEl.id, saveUndo = true) { it.copy(color = color) }
                 },
                 onDismiss = {
                     showTextStyle = false
@@ -788,7 +790,7 @@ private fun CanvasElementOnBoard(
                 },
             )
             .then(
-                if (selected) {
+                if (selected && !isEditing) {
                     Modifier
                         .pointerInput(element.id) {
                             awaitEachGesture {
@@ -809,8 +811,9 @@ private fun CanvasElementOnBoard(
                                 val cosA = kotlin.math.cos(angleRad).toFloat()
                                 val sinA = kotlin.math.sin(angleRad).toFloat()
 
-                                val dx = (pan.x * cosA - pan.y * sinA) * el.scale
-                                val dy = (pan.x * sinA + pan.y * cosA) * el.scale
+                                val adjustedPanX = if (el.isFlipped) -pan.x else pan.x
+                                val dx = (adjustedPanX * cosA - pan.y * sinA) * el.scale
+                                val dy = (adjustedPanX * sinA + pan.y * cosA) * el.scale
 
                                 val hwN = (size.width * el.scale / 2f) / w
                                 val hhN = (size.height * el.scale / 2f) / h
@@ -861,7 +864,7 @@ private fun AspectRatioPickerContent(
     sheetState: SheetState,
     onRatioChange: (Float) -> Unit,
 ) {
-    val isVi = Locale.getDefault().language == "vi"
+    val isVi = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "vi"
     val options = listOf(
         AspectRatioOption("9:16", 0.5625f, if (isVi) "Dọc (Tin / Reels)" else "Portrait (Stories / Reels)"),
         AspectRatioOption("3:4", 0.75f, if (isVi) "Dọc (Instagram / Tiêu chuẩn)" else "Portrait (Instagram / Standard)"),
@@ -1166,6 +1169,7 @@ private fun FontPresetsContent(
     currentFont: String,
     onFontChange: (String) -> Unit,
 ) {
+    val isVi = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "vi"
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1196,7 +1200,7 @@ private fun FontPresetsContent(
                         style = MaterialTheme.typography.titleMedium.copy(fontFamily = fontFamily),
                     )
                     Text(
-                        if (Locale.getDefault().language == "vi") "Một con cáo nâu nhanh nhẹn nhảy qua một con chó lười" else "The quick brown fox jumps over the lazy dog",
+                        if (isVi) "Một con cáo nâu nhanh nhẹn nhảy qua một con chó lười" else "The quick brown fox jumps over the lazy dog",
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = fontFamily),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1288,7 +1292,7 @@ private fun ExpandableFab(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(end = 20.dp, bottom = 24.dp),
+            .padding(end = 16.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.Bottom,
     ) {
@@ -1452,12 +1456,15 @@ private fun BackgroundsGrid(
             .verticalScroll(scrollState)
             .scrollFirstThenDragSheet(scrollState, sheetState)
     ) {
+        val context = androidx.compose.ui.platform.LocalContext.current
         BackgroundOptions.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 row.forEach { (key, label) ->
+                    val resourceId = context.resources.getIdentifier(key, "string", context.packageName)
+                    val localizedLabel = if (resourceId != 0) context.getString(resourceId) else label
                     Column(
                         modifier = Modifier.weight(1f)
                             .clickable { onSelect(key) },
@@ -1479,7 +1486,7 @@ private fun BackgroundsGrid(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(vertical = 6.dp),
                         ) {
-                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                            Text(localizedLabel, style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.weight(1f))
                             RadioButton(selected = current == key, onClick = { onSelect(key) })
                         }

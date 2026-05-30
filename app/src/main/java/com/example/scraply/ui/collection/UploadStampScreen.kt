@@ -38,6 +38,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -94,10 +96,10 @@ fun UploadStampScreen(
             OutlinedButton(
                 onClick = onClose,
                 shape = RoundedCornerShape(18.dp),
-            ) { Text("Close") }
+            ) { Text(stringResource(R.string.close)) }
             Spacer(Modifier.weight(1f))
             Text(
-                "Upload Stamp",
+                stringResource(R.string.upload_stamp),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -131,7 +133,7 @@ fun UploadStampScreen(
                     }
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Pick a photo to cut a stamp",
+                        stringResource(R.string.pick_photo_prompt),
                         color = Color.White,
                         style = MaterialTheme.typography.bodyLarge,
                     )
@@ -179,7 +181,7 @@ fun UploadStampScreen(
                 .padding(16.dp),
         ) {
             Text(
-                "Drag image. Pinch to zoom.",
+                stringResource(R.string.drag_pinch_hint),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth(),
@@ -196,7 +198,7 @@ fun UploadStampScreen(
                     },
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.weight(1f),
-                ) { Text("Choose Photo") }
+                ) { Text(stringResource(R.string.choose_photo)) }
                 Button(
                     enabled = bitmap != null,
                     onClick = {
@@ -220,7 +222,7 @@ fun UploadStampScreen(
                         containerColor = MaterialTheme.colorScheme.tertiary,
                     ),
                     modifier = Modifier.weight(1f),
-                ) { Text("Cut Stamp") }
+                ) { Text(stringResource(R.string.cut_stamp)) }
             }
         }
     }

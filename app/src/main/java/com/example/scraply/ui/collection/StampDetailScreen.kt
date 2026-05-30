@@ -30,6 +30,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.ui.unit.dp
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
@@ -68,13 +70,13 @@ fun StampDetailScreen(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.notif_back),
                 onClick = onBack,
             )
             Spacer(Modifier.weight(1f))
             CircleIconButton(
                 icon = Icons.Filled.Delete,
-                contentDescription = "Delete",
+                contentDescription = stringResource(R.string.collections_delete),
                 onClick = {
                     vm.deleteStamp(stampId)
                     onBack()
@@ -103,22 +105,22 @@ fun StampDetailScreen(
                 }
             }
             Spacer(Modifier.height(20.dp))
-            Text("Title", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.stamp_title), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it; dirty = true },
-                placeholder = { Text("Give it a title") },
+                placeholder = { Text(stringResource(R.string.stamp_give_title)) },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(16.dp))
-            Text("Caption", style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.stamp_caption), style = MaterialTheme.typography.labelLarge)
             Spacer(Modifier.height(6.dp))
             OutlinedTextField(
                 value = caption,
                 onValueChange = { caption = it; dirty = true },
-                placeholder = { Text("What do you see?") },
+                placeholder = { Text(stringResource(R.string.stamp_what_see)) },
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -143,7 +145,7 @@ fun StampDetailScreen(
                         containerColor = MaterialTheme.colorScheme.tertiary,
                     ),
                     modifier = Modifier.weight(1f),
-                ) { Text("Save changes") }
+                ) { Text(stringResource(R.string.stamp_save_changes)) }
             }
         }
     }

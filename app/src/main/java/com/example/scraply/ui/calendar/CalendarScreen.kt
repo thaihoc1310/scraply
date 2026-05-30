@@ -53,6 +53,7 @@ fun CalendarScreen(
 ) {
     val stamps by vm.stamps.collectAsState()
     var month by remember { mutableStateOf(YearMonth.now()) }
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
 
     val grouped = remember(stamps, month) {
         val zone = ZoneId.systemDefault()
@@ -107,7 +108,7 @@ fun CalendarScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                month.month.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                month.month.getDisplayName(TextStyle.FULL, locale),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -142,7 +143,7 @@ fun CalendarScreen(
             )
             weekDays.forEach { day ->
                 Text(
-                    day.getDisplayName(TextStyle.SHORT, Locale.getDefault()),
+                    day.getDisplayName(TextStyle.SHORT, locale),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -258,6 +259,7 @@ fun CalendarDateDetailScreen(
     onOpenStamp: (String) -> Unit,
 ) {
     val stamps by vm.stamps.collectAsState()
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     val date = remember(epochDay) { LocalDate.ofEpochDay(epochDay) }
     val zone = ZoneId.systemDefault()
     val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -283,7 +285,7 @@ fun CalendarDateDetailScreen(
             )
             Spacer(Modifier.width(12.dp))
             Text(
-                "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${date.year}",
+                "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, locale)} ${date.year}",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )

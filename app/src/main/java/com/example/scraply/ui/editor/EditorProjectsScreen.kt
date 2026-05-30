@@ -240,7 +240,8 @@ private fun ProjectPreview(
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center,
     ) {
-        if (card.elements.isEmpty()) {
+        val hasCustomBackground = card.project.backgroundType.isNotEmpty() && card.project.backgroundType != "paper"
+        if (card.elements.isEmpty() && !hasCustomBackground) {
             Text(
                 stringResource(R.string.editor_empty_canvas),
                 style = MaterialTheme.typography.labelLarge,

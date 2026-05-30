@@ -197,7 +197,7 @@ private fun CollectionCardView(
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                card.collection.name,
+                if (card.collection.isDefault) stringResource(R.string.all_stamps) else card.collection.name,
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )

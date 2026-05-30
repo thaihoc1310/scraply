@@ -210,4 +210,76 @@
     <string name="recent_comments_delete_btn">Delete (%1$d)</string>
     <string name="recent_comments_empty">No comments yet.</string>
     <string name="recent_comments_delete_hint">When you delete them, these comments will be permanently removed from the scrapbooks.</string>
+
+    <!-- Notifications -->
+    <string name="notif_title">Notifications</string>
+    <string name="notif_back">Back</string>
+    <string name="notif_mark_all_read">Mark all read</string>
+    <string name="notif_empty_signed_out_title">No notifications yet</string>
+    <string name="notif_empty_signed_out_subtitle">Sign in to see activity on your scrapbooks.</string>
+    <string name="notif_empty_title">You\'re all caught up</string>
+    <string name="notif_empty_subtitle">Likes, comments and new followers will show up here.</string>
+    <string name="notif_someone">Someone</string>
+    <string name="notif_liked_your_scrapbook">liked your scrapbook</string>
+    <string name="notif_left_comment">left a comment</string>
+    <string name="notif_started_following">started following you</string>
+    <string name="notif_generic">sent you a notification</string>
+    <string name="time_just_now">just now</string>
+    <string name="time_minutes_ago">%1$dm ago</string>
+    <string name="time_hours_ago">%1$dh ago</string>
+    <string name="time_days_ago">%1$dd ago</string>
+
+    <!-- Auth -->
+    <string name="auth_firebase_not_configured">Firebase not configured yet</string>
+    <string name="auth_firebase_not_configured_desc">Drop a real google-services.json into app/ and set default_web_client_id in res/values/firebase_strings.xml to enable sign-in, feed, and cloud sync.</string>
+    <string name="auth_create_account_headline">Create your Scraply account</string>
+    <string name="auth_create_account_subtext">Sign up to publish scrapbooks, follow creators, and sync your collections.</string>
+    <string name="auth_display_name_label">Display name (optional)</string>
+    <string name="auth_email_label">Email</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_forgot_password">Forgot password?</string>
+    <string name="auth_create_account_btn">Create account</string>
+    <string name="auth_sign_in_btn">Sign in</string>
+    <string name="auth_or_divider">OR</string>
+    <string name="auth_signup_google">Sign up with Google</string>
+    <string name="auth_signin_google">Sign in with Google</string>
+    <string name="auth_already_have_account">Already have an account?</string>
+    <string name="auth_no_account">Don\'t have an account?</string>
+    <string name="auth_sign_up_btn">Sign up</string>
+
+    <!-- Background Options -->
+    <string name="bg_chalkboard">Chalkboard</string>
+    <string name="bg_cork_board">Cork Board</string>
+    <string name="bg_crumpled_white">Crumpled White</string>
+    <string name="bg_doodle_galaxy">Doodle Galaxy</string>
+    <string name="bg_floral_paper">Floral Paper</string>
+    <string name="bg_floral_paper_2">Floral Paper 2</string>
+    <string name="bg_grid_green">Grid Green</string>
+    <string name="bg_kraft_brown">Kraft Brown</string>
+    <string name="bg_lavender">Lavender Dream</string>
+    <string name="bg_vintage_old">Vintage Old</string>
+    <string name="bg_lined_notebook">Lined Notebook</string>
+    <string name="bg_linen_beige">Linen Beige</string>
+    <string name="bg_midnight_blue">Midnight Blue</string>
+    <string name="bg_mint_pastel">Mint Pastel</string>
+    <string name="bg_old_newspaper">Old Newspaper</string>
+    <string name="bg_pastel_pink">Pastel Pink</string>
+    <string name="bg_purple_pastel">Purple Pastel</string>
+    <string name="bg_floral_script">Floral Script</string>
+    <string name="bg_red_grid">Red Grid Note</string>
+    <string name="bg_starry_night">Starry Night</string>
+    <string name="bg_vintage_cream">Vintage Cream</string>
+    <string name="bg_wood_plank">Wood Plank</string>
+
+    <!-- Additional UI string resources -->
+    <string name="profile_default_name">Scraply user</string>
+    <string name="profile_signin_view_posts">Sign in to view your published scrapbooks.</string>
+    <string name="notif_channel_social_name">Social activity</string>
+    <string name="notif_channel_social_desc">Likes, comments and follows on your scrapbooks.</string>
+    <string name="stamp_save_changes">Save changes</string>
+
+    <!-- About Screen -->
+    <string name="about_title">About Scraply</string>
+    <string name="about_intro">Scraply was crafted with a simple yet passionate vision: to help you capture, arrange, and preserve your life\'s most precious moments through a beautiful, tactile digital scrapbook.\n\nIn a world where memories are often lost in giant, endless digital feeds, Scraply gives you the creative space to slow down. You can capture unique custom stamps from your daily surroundings, write down your deepest reflections, and freely arrange them on raw texture canvases. Every design is a reflecting window to your personal journey, designed with total freedom. Thank you for choosing Scraply to tell your beautiful stories!</string>
+    <string name="about_version">Version 0.3.5 (25)</string>
 </resources>
