@@ -816,11 +816,6 @@ fun FeedCard(
                 modifier = Modifier.padding(horizontal = 8.dp)
             )
         }
-        CommentPreviewSection(
-            commentCount = post.commentCount,
-            comments = post.previewComments,
-            onOpenComments = onOpenComments,
-        )
     }
 
     if (showEditDialog && onEditPost != null) {
@@ -1206,3 +1201,4 @@ private fun LikeUserRow(like: FeedLikeUser) {
         }
     }
 }
+
