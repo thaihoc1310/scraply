@@ -1,6 +1,7 @@
 package com.example.scraply.data
 
 import android.content.Context
+import android.util.Log
 import com.example.scraply.data.auth.AuthRepository
 import com.example.scraply.data.local.ScraplyDatabase
 import com.example.scraply.data.preferences.AppPreferencesRepository
@@ -11,6 +12,7 @@ import com.example.scraply.data.remote.StorageRepository
 import com.example.scraply.data.repository.CollectionRepository
 import com.example.scraply.data.repository.ProjectRepository
 import com.example.scraply.data.repository.StampRepository
+import com.example.scraply.notifications.NotificationTokenManager
 import com.google.firebase.FirebaseApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -75,5 +77,12 @@ class ScraplyContainer(context: Context) {
 
     init {
         appScope.launch { collectionRepository.ensureDefaultCollection() }
+        val uid = authRepository?.currentUserId
+        if (!uid.isNullOrBlank()) {
+            appScope.launch {
+                NotificationTokenManager.saveCurrentToken(uid)
+                    .onFailure { Log.w("ScraplyContainer", "Failed to register FCM token", it) }
+            }
+        }
     }
 }

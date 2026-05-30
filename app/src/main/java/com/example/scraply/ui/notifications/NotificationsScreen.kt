@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -132,29 +133,47 @@ private fun NotificationRow(item: NotificationItem, onClick: () -> Unit) {
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val showActorAvatar = item.type == NotificationType.LIKE || item.type == NotificationType.COMMENT
         Box(
-            modifier = Modifier.size(40.dp).clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.size(40.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (item.actorAvatar != null) {
-                AsyncImage(
-                    model = item.actorAvatar,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Icon(iconFor(item.type), contentDescription = null, modifier = Modifier.size(22.dp))
+            Box(
+                modifier = Modifier.matchParentSize()
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (showActorAvatar) {
+                    if (item.actorAvatar != null) {
+                        AsyncImage(
+                            model = item.actorAvatar,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text(
+                            (item.actorName ?: "?").take(1).uppercase(),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                } else {
+                    Icon(iconFor(item.type), contentDescription = null, modifier = Modifier.size(22.dp))
+                }
             }
-            Icon(
-                iconFor(item.type),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.align(Alignment.BottomEnd)
-                    .size(18.dp)
-                    .background(tintFor(item.type), CircleShape)
-                    .padding(3.dp),
-            )
+            if (showActorAvatar) {
+                Icon(
+                    iconFor(item.type),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(18.dp)
+                        .background(tintFor(item.type), CircleShape)
+                        .padding(3.dp),
+                )
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
