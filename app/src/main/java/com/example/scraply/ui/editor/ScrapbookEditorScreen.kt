@@ -167,7 +167,6 @@ fun ScrapbookEditorScreen(
     LaunchedEffect(publishState) {
         when (val s = publishState) {
             is PublishState.Success -> {
-                Toast.makeText(context, context.getString(R.string.editor_published_toast), Toast.LENGTH_SHORT).show()
                 vm.dismissPublishState()
                 onPublished(s.postId)
             }
