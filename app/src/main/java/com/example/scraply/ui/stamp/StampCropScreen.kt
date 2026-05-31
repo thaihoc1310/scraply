@@ -17,11 +17,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -40,6 +44,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -80,118 +85,138 @@ fun StampCropScreen(
     // Stamp aspect ratio (147:190)
     val stampAspect = 147f / 190f
 
-    Column(
+    Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp),
-    ) {
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = stringResource(R.string.stamp_adjust),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Preview area - fixed stamp centered on screen
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentAlignment = Alignment.Center,
-        ) {
-            previewBitmap?.let { bmp ->
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Stamp preview",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxWidth(0.58f)
-                        .aspectRatio(stampAspect),
+            .background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircleIconButton(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.calendar_back),
+                    onClick = onBack,
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.stamp_adjust),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
-        }
-
-        OptionSection(
-            title = stringResource(R.string.stamp_style),
-            options = ImageUtils.StampStyle.entries,
-            selected = selectedStyle,
-            onSelect = { selectedStyle = it },
-            label = { style ->
-                when (style) {
-                    ImageUtils.StampStyle.CLASSIC -> stringResource(R.string.stamp_style_classic)
-                    ImageUtils.StampStyle.VINTAGE -> stringResource(R.string.stamp_style_vintage)
-                    ImageUtils.StampStyle.VINTAGE_2 -> stringResource(R.string.stamp_style_vintage2)
-                }
-            },
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OptionSection(
-            title = stringResource(R.string.stamp_frame),
-            options = ImageUtils.StampFrameStyle.entries,
-            selected = selectedFrame,
-            onSelect = { selectedFrame = it },
-            label = { frame ->
-                when (frame) {
-                    ImageUtils.StampFrameStyle.FULL_BLEED -> stringResource(R.string.stamp_frame_full)
-                    ImageUtils.StampFrameStyle.CLEAN_FRAME -> stringResource(R.string.stamp_frame_frame)
-                    ImageUtils.StampFrameStyle.NO_STROKE -> stringResource(R.string.stamp_frame_none)
-                }
-            },
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OutlinedButton(
-                onClick = onBack,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.weight(1f),
+        },
+        bottomBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 12.dp, bottom = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(stringResource(R.string.stamp_retake))
-            }
-            Button(
-                onClick = {
-                    val source = bitmap
-                    if (source != null) {
-                        isProcessing = true
-                        scope.launch {
-                            val savedUri = withContext(Dispatchers.IO) {
-                                val rendered = ImageUtils.renderStyledStamp(
-                                    context = context,
-                                    source = source,
-                                    style = selectedStyle,
-                                    frameStyle = selectedFrame,
-                                )
-                                val uri = ImageUtils.saveStampPng(context, rendered)
-                                rendered.recycle()
-                                uri
+                OutlinedButton(
+                    onClick = onBack,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(stringResource(R.string.stamp_retake))
+                }
+                Button(
+                    onClick = {
+                        val source = bitmap
+                        if (source != null) {
+                            isProcessing = true
+                            scope.launch {
+                                val savedUri = withContext(Dispatchers.IO) {
+                                    val rendered = ImageUtils.renderStyledStamp(
+                                        context = context,
+                                        source = source,
+                                        style = selectedStyle,
+                                        frameStyle = selectedFrame,
+                                    )
+                                    val uri = ImageUtils.saveStampPng(context, rendered)
+                                    rendered.recycle()
+                                    uri
+                                }
+                                onCropped(Uri.encode(savedUri))
                             }
-                            onCropped(Uri.encode(savedUri))
                         }
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    modifier = Modifier.weight(1f),
+                    enabled = !isProcessing && bitmap != null,
+                ) {
+                    Text(if (isProcessing) stringResource(R.string.stamp_processing) else stringResource(R.string.stamp_next))
+                }
+            }
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 20.dp),
+        ) {
+            // Preview area - fixed stamp centered on screen
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                previewBitmap?.let { bmp ->
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = "Stamp preview",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxWidth(0.58f)
+                            .aspectRatio(stampAspect),
+                    )
+                }
+            }
+
+            OptionSection(
+                title = stringResource(R.string.stamp_style),
+                options = ImageUtils.StampStyle.entries,
+                selected = selectedStyle,
+                onSelect = { selectedStyle = it },
+                label = { style ->
+                    when (style) {
+                        ImageUtils.StampStyle.CLASSIC -> stringResource(R.string.stamp_style_classic)
+                        ImageUtils.StampStyle.VINTAGE -> stringResource(R.string.stamp_style_vintage)
+                        ImageUtils.StampStyle.VINTAGE_2 -> stringResource(R.string.stamp_style_vintage2)
                     }
                 },
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                ),
-                modifier = Modifier.weight(1f),
-                enabled = !isProcessing && bitmap != null,
-            ) {
-                Text(if (isProcessing) stringResource(R.string.stamp_processing) else stringResource(R.string.stamp_next))
-            }
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OptionSection(
+                title = stringResource(R.string.stamp_frame),
+                options = ImageUtils.StampFrameStyle.entries,
+                selected = selectedFrame,
+                onSelect = { selectedFrame = it },
+                label = { frame ->
+                    when (frame) {
+                        ImageUtils.StampFrameStyle.FULL_BLEED -> stringResource(R.string.stamp_frame_full)
+                        ImageUtils.StampFrameStyle.CLEAN_FRAME -> stringResource(R.string.stamp_frame_frame)
+                        ImageUtils.StampFrameStyle.NO_STROKE -> stringResource(R.string.stamp_frame_none)
+                    }
+                },
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

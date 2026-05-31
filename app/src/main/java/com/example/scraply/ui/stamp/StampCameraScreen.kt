@@ -33,6 +33,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +57,7 @@ import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,6 +78,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -88,7 +91,6 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.scraply.R
-import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.util.CutterGeometry
 import com.example.scraply.util.StampBitmapProcessor
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -492,7 +494,7 @@ private fun CameraContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CircleIconButton(
+            CameraCornerIconButton(
                 icon = if (hasFlash) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
                 contentDescription = "Toggle flash",
                 enabled = !isCapturing &&
@@ -510,7 +512,7 @@ private fun CameraContent(
                 tint = Color.White,
             )
 
-            CircleIconButton(
+            CameraCornerIconButton(
                 icon = Icons.Filled.Cameraswitch,
                 contentDescription = "Flip camera",
                 enabled = !isCapturing,
@@ -537,7 +539,7 @@ private fun CameraContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                CircleIconButton(
+                CameraCornerIconButton(
                     icon = Icons.Filled.AddPhotoAlternate,
                     contentDescription = stringResource(R.string.collections_upload_stamp),
                     onClick = onOpenUpload,
@@ -717,6 +719,33 @@ private fun CaptureButton(
 }
 
 @Composable
+private fun CameraCornerIconButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    background: Color,
+    tint: Color,
+) {
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(CircleShape)
+            .background(background.copy(alpha = if (enabled) background.alpha else 0.28f))
+            .border(1.dp, Color.White.copy(alpha = if (enabled) 0.16f else 0.08f), CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint.copy(alpha = if (enabled) 1f else 0.38f),
+            modifier = Modifier.size(24.dp),
+        )
+    }
+}
+
+@Composable
 private fun ZoomButton(
     zoom: Float,
     enabled: Boolean,
@@ -724,9 +753,10 @@ private fun ZoomButton(
 ) {
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(52.dp)
             .clip(CircleShape)
             .background(Color.Black.copy(alpha = if (enabled) 0.55f else 0.28f))
+            .border(1.dp, Color.White.copy(alpha = if (enabled) 0.16f else 0.08f), CircleShape)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

@@ -102,10 +102,14 @@ fun ProfileScreen(
     ) {
         Spacer(Modifier.height(24.dp))
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.profile_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.profile_title),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Spacer(Modifier.weight(1f))
             if (authState.isSignedIn) {
                 BellWithBadge(

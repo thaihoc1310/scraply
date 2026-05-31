@@ -89,6 +89,11 @@ fun EditorProjectsScreen(
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                stringResource(R.string.editor_title),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Spacer(Modifier.weight(1f))
             CircleIconButton(
                 icon = Icons.Filled.Add,
@@ -96,13 +101,6 @@ fun EditorProjectsScreen(
                 onClick = { showCreate = true },
             )
         }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            stringResource(R.string.editor_title),
-            style = MaterialTheme.typography.displayMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
         Text(
             stringResource(R.string.editor_projects),
             style = MaterialTheme.typography.bodyLarge,

@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarViewMonth
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -73,9 +73,14 @@ fun CollectionsScreen(
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                text = stringResource(R.string.collections_title),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Spacer(Modifier.weight(1f))
             CircleIconButton(
-                icon = Icons.Filled.CalendarViewMonth,
+                icon = Icons.Filled.CalendarMonth,
                 contentDescription = stringResource(R.string.collections_calendar),
                 onClick = onOpenCalendar,
             )
@@ -86,13 +91,6 @@ fun CollectionsScreen(
                 onClick = { showCreate = true },
             )
         }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.collections_title),
-            style = MaterialTheme.typography.displayMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
         Spacer(Modifier.height(8.dp))
 
         LazyColumn(
