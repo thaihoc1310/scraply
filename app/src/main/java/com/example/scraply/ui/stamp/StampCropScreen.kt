@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -36,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -191,11 +194,16 @@ fun StampCropScreen(
                 options = ImageUtils.StampStyle.entries,
                 selected = selectedStyle,
                 onSelect = { selectedStyle = it },
+                scrollable = true,
                 label = { style ->
                     when (style) {
                         ImageUtils.StampStyle.CLASSIC -> stringResource(R.string.stamp_style_classic)
                         ImageUtils.StampStyle.VINTAGE -> stringResource(R.string.stamp_style_vintage)
                         ImageUtils.StampStyle.VINTAGE_2 -> stringResource(R.string.stamp_style_vintage2)
+                        ImageUtils.StampStyle.BLACK_AND_WHITE -> stringResource(R.string.stamp_style_black_and_white)
+                        ImageUtils.StampStyle.FADED -> stringResource(R.string.stamp_style_faded)
+                        ImageUtils.StampStyle.FILM -> stringResource(R.string.stamp_style_film)
+                        ImageUtils.StampStyle.SEPIA -> stringResource(R.string.stamp_style_sepia)
                     }
                 },
             )
@@ -227,6 +235,7 @@ private fun <T> OptionSection(
     options: List<T>,
     selected: T,
     onSelect: (T) -> Unit,
+    scrollable: Boolean = false,
     label: @Composable (T) -> String,
 ) {
     Text(
@@ -237,50 +246,56 @@ private fun <T> OptionSection(
     )
     Spacer(modifier = Modifier.height(8.dp))
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .let { if (scrollable) it.horizontalScroll(rememberScrollState()) else it },
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         options.forEach { option ->
             val isSelected = option == selected
-            val isDark = isSystemInDarkTheme()
-            val selectedContainer = if (isDark) Color(0xFF242424) else Color(0xFFD6D6D6)
-            val unselectedContainer = if (isDark) Color(0xFF343434) else Color(0xFFF1F1F1)
-            val selectedBorder = if (isDark) Color(0xFF5A5A5A) else Color(0xFFB8B8B8)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        if (isSelected) {
-                            selectedContainer
-                        } else {
-                            unselectedContainer
-                        },
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (isSelected) {
-                            selectedBorder
-                        } else {
-                            Color.Transparent
-                        },
-                        shape = RoundedCornerShape(14.dp),
-                    )
-                    .clickable { onSelect(option) }
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = label(option),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
+            OptionButton(
+                label = label(option),
+                selected = isSelected,
+                onClick = { onSelect(option) },
+                modifier = if (scrollable) Modifier.widthIn(min = 92.dp) else Modifier.weight(1f),
+            )
         }
+    }
+}
+
+@Composable
+private fun OptionButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    val isDark = isSystemInDarkTheme()
+    val selectedContainer = if (isDark) Color(0xFF242424) else Color(0xFFD6D6D6)
+    val unselectedContainer = if (isDark) Color(0xFF343434) else Color(0xFFF1F1F1)
+    val selectedBorder = if (isDark) Color(0xFF5A5A5A) else Color(0xFFB8B8B8)
+    Box(
+        modifier = modifier
+            .height(42.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(if (selected) selectedContainer else unselectedContainer)
+            .border(
+                width = 1.dp,
+                color = if (selected) selectedBorder else Color.Transparent,
+                shape = RoundedCornerShape(14.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
     }
 }

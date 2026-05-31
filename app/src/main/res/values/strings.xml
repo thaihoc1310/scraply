@@ -93,6 +93,10 @@
     <string name="stamp_style_classic">Classic</string>
     <string name="stamp_style_vintage">Vintage</string>
     <string name="stamp_style_vintage2">Vintage 2</string>
+    <string name="stamp_style_black_and_white">Black &amp; White</string>
+    <string name="stamp_style_faded">Faded</string>
+    <string name="stamp_style_film">Film</string>
+    <string name="stamp_style_sepia">Sepia</string>
     <string name="stamp_frame">Stamp Frame</string>
     <string name="stamp_frame_full">Full</string>
     <string name="stamp_frame_frame">Frame</string>
