@@ -7,6 +7,8 @@ import android.graphics.BitmapFactory
 import android.graphics.BlendMode
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PorterDuff
@@ -28,6 +30,10 @@ object ImageUtils {
         CLASSIC("Classic"),
         VINTAGE("Vintage"),
         VINTAGE_2("Vintage 2"),
+        BLACK_AND_WHITE("Black & White"),
+        FADED("Faded"),
+        FILM("Film"),
+        SEPIA("Sepia"),
     }
 
     enum class StampFrameStyle(val label: String) {
@@ -308,8 +314,49 @@ object ImageUtils {
         dst: RectF,
         style: StampStyle,
     ) {
-        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+        val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG).apply {
+            colorFilter = styleColorFilter(style)
+        }
         canvas.drawBitmap(source, null, dst, paint)
+    }
+
+    private fun styleColorFilter(style: StampStyle): ColorMatrixColorFilter? {
+        val matrix = when (style) {
+            StampStyle.BLACK_AND_WHITE -> ColorMatrix().apply {
+                setSaturation(0f)
+            }
+            StampStyle.FADED -> ColorMatrix().apply {
+                setSaturation(0.72f)
+                postConcat(
+                    ColorMatrix(
+                        floatArrayOf(
+                            0.86f, 0f, 0f, 0f, 18f,
+                            0f, 0.86f, 0f, 0f, 18f,
+                            0f, 0f, 0.86f, 0f, 18f,
+                            0f, 0f, 0f, 1f, 0f,
+                        ),
+                    ),
+                )
+            }
+            StampStyle.FILM -> ColorMatrix(
+                floatArrayOf(
+                    1.04f, 0.02f, 0f, 0f, 4f,
+                    0.01f, 0.98f, 0f, 0f, 2f,
+                    0f, 0.01f, 0.9f, 0f, -2f,
+                    0f, 0f, 0f, 1f, 0f,
+                ),
+            )
+            StampStyle.SEPIA -> ColorMatrix(
+                floatArrayOf(
+                    0.393f, 0.769f, 0.189f, 0f, 0f,
+                    0.349f, 0.686f, 0.168f, 0f, 0f,
+                    0.272f, 0.534f, 0.131f, 0f, 0f,
+                    0f, 0f, 0f, 1f, 0f,
+                ),
+            )
+            else -> return null
+        }
+        return ColorMatrixColorFilter(matrix)
     }
 
     private fun drawStyleTexture(
@@ -322,6 +369,11 @@ object ImageUtils {
             StampStyle.CLASSIC -> return
             StampStyle.VINTAGE -> R.drawable.stamp_filter1
             StampStyle.VINTAGE_2 -> R.drawable.stamp_vintage2
+            StampStyle.BLACK_AND_WHITE,
+            StampStyle.FADED,
+            StampStyle.SEPIA,
+                -> return
+            StampStyle.FILM -> R.drawable.stamp_filter1
         }
         val texture = BitmapFactory.decodeResource(context.resources, textureRes) ?: return
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG).apply {
@@ -329,18 +381,33 @@ object ImageUtils {
                 StampStyle.CLASSIC -> 0
                 StampStyle.VINTAGE -> (255 * 0.6f).toInt()
                 StampStyle.VINTAGE_2 -> 255
+                StampStyle.BLACK_AND_WHITE,
+                StampStyle.FADED,
+                StampStyle.SEPIA,
+                    -> 0
+                StampStyle.FILM -> (255 * 0.22f).toInt()
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 blendMode = when (style) {
                     StampStyle.CLASSIC -> null
                     StampStyle.VINTAGE -> BlendMode.OVERLAY
                     StampStyle.VINTAGE_2 -> BlendMode.COLOR_DODGE
+                    StampStyle.BLACK_AND_WHITE,
+                    StampStyle.FADED,
+                    StampStyle.SEPIA,
+                        -> null
+                    StampStyle.FILM -> BlendMode.OVERLAY
                 }
             } else {
                 xfermode = when (style) {
                     StampStyle.CLASSIC -> null
                     StampStyle.VINTAGE -> PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
                     StampStyle.VINTAGE_2 -> PorterDuffXfermode(PorterDuff.Mode.SCREEN)
+                    StampStyle.BLACK_AND_WHITE,
+                    StampStyle.FADED,
+                    StampStyle.SEPIA,
+                        -> null
+                    StampStyle.FILM -> PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
                 }
             }
         }
