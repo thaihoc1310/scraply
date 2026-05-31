@@ -151,6 +151,7 @@ fun ScrapbookEditorScreen(
     vm: EditorViewModel,
     projectId: String,
     onBack: () -> Unit,
+    onPublished: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -168,6 +169,7 @@ fun ScrapbookEditorScreen(
             is PublishState.Success -> {
                 Toast.makeText(context, context.getString(R.string.editor_published_toast), Toast.LENGTH_SHORT).show()
                 vm.dismissPublishState()
+                onPublished(s.postId)
             }
             is PublishState.Error -> {
                 Toast.makeText(context, s.message, Toast.LENGTH_LONG).show()

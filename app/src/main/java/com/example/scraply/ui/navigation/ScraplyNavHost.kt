@@ -195,6 +195,16 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     vm = vm,
                     projectId = id,
                     onBack = { navController.popBackStack() },
+                    onPublished = { postId ->
+                        navController.navigate(Routes.FEED) {
+                            popUpTo(Routes.STAMP) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                        navController.navigate(Routes.feedPost(postId)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
