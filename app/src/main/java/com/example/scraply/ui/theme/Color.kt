@@ -3,6 +3,7 @@ package com.example.scraply.ui.theme
 import androidx.compose.ui.graphics.Color
 
 val PaperCream = Color(0xFFF5F1EC)
+val PaperCreamLight = Color(0xFFFAF8F5)
 val PaperCreamDark = Color(0xFFE9E3DA)
 val InkBlack = Color(0xFF1F1B18)
 val InkSoft = Color(0xFF3C3733)

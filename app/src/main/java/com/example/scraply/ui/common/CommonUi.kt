@@ -88,16 +88,19 @@ fun PillBadge(
 @Composable
 fun ScraplyCard(
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
+    val shape = RoundedCornerShape(22.dp)
     Box(
         modifier = modifier
-            .shadow(3.dp, RoundedCornerShape(22.dp))
-            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surface, shape)
             .border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
-                RoundedCornerShape(22.dp),
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)),
+                shape,
             )
+            .clip(shape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(16.dp),
     ) {
         content()

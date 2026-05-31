@@ -166,7 +166,7 @@ private fun ProjectCardView(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
-    ScraplyCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
+    ScraplyCard(modifier = Modifier.fillMaxWidth(), onClick = onOpen) {
         Box {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
