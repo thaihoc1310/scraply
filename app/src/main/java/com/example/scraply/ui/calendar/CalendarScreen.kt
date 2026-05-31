@@ -32,9 +32,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.StampImage
@@ -52,7 +53,7 @@ fun CalendarScreen(
 ) {
     val stamps by vm.stamps.collectAsState()
     var month by remember { mutableStateOf(YearMonth.now()) }
-    var compact by remember { mutableStateOf(false) }
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
 
     val grouped = remember(stamps, month) {
         val zone = ZoneId.systemDefault()
@@ -66,7 +67,7 @@ fun CalendarScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -75,7 +76,7 @@ fun CalendarScreen(
         ) {
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.calendar_back),
                 onClick = onBack,
             )
         }
@@ -107,20 +108,20 @@ fun CalendarScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                month.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
+                month.month.getDisplayName(TextStyle.FULL, locale),
                 style = MaterialTheme.typography.headlineLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.weight(1f))
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                contentDescription = "Previous month",
+                contentDescription = stringResource(R.string.calendar_prev_month),
                 onClick = { month = month.minusMonths(1) },
             )
             Spacer(Modifier.width(4.dp))
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Next month",
+                contentDescription = stringResource(R.string.calendar_next_month),
                 onClick = { month = month.plusMonths(1) },
             )
         }
@@ -128,34 +129,21 @@ fun CalendarScreen(
 
         Row(
             modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(28.dp))
-                .padding(4.dp),
-        ) {
-            CompactFullChip(
-                label = "Compact",
-                selected = compact,
-                onClick = { compact = true },
-                modifier = Modifier.weight(1f),
-            )
-            CompactFullChip(
-                label = "Full",
-                selected = !compact,
-                onClick = { compact = false },
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-
-        Row(
-            modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
         ) {
-            listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach {
+            val weekDays = listOf(
+                java.time.DayOfWeek.SUNDAY,
+                java.time.DayOfWeek.MONDAY,
+                java.time.DayOfWeek.TUESDAY,
+                java.time.DayOfWeek.WEDNESDAY,
+                java.time.DayOfWeek.THURSDAY,
+                java.time.DayOfWeek.FRIDAY,
+                java.time.DayOfWeek.SATURDAY
+            )
+            weekDays.forEach { day ->
                 Text(
-                    it,
+                    day.getDisplayName(TextStyle.SHORT, locale),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -167,7 +155,6 @@ fun CalendarScreen(
 
         MonthGrid(
             month = month,
-            compact = compact,
             stampsByDay = grouped,
             onDateClick = { day ->
                 onOpenDate(day.toEpochDay())
@@ -178,35 +165,8 @@ fun CalendarScreen(
 }
 
 @Composable
-private fun CompactFullChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier,
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (selected) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 private fun MonthGrid(
     month: YearMonth,
-    compact: Boolean,
     stampsByDay: Map<LocalDate, List<Stamp>>,
     onDateClick: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
@@ -240,7 +200,6 @@ private fun MonthGrid(
             DateCell(
                 date = date,
                 inMonth = inMonth,
-                compact = compact,
                 stamps = stamps,
                 onClick = { if (inMonth) onDateClick(date) },
             )
@@ -252,13 +211,12 @@ private fun MonthGrid(
 private fun DateCell(
     date: LocalDate,
     inMonth: Boolean,
-    compact: Boolean,
     stamps: List<Stamp>,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
-            .aspectRatio(if (compact) 1f else 0.78f)
+            .aspectRatio(0.78f)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
@@ -279,7 +237,7 @@ private fun DateCell(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(width = if (compact) 22.dp else 30.dp, height = if (compact) 26.dp else 36.dp)
+                        .size(width = 30.dp, height = 36.dp)
                         .padding(1.dp),
                 ) {
                     StampImage(
@@ -301,6 +259,7 @@ fun CalendarDateDetailScreen(
     onOpenStamp: (String) -> Unit,
 ) {
     val stamps by vm.stamps.collectAsState()
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     val date = remember(epochDay) { LocalDate.ofEpochDay(epochDay) }
     val zone = ZoneId.systemDefault()
     val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
@@ -312,7 +271,7 @@ fun CalendarDateDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -321,12 +280,12 @@ fun CalendarDateDetailScreen(
         ) {
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.calendar_back),
                 onClick = onBack,
             )
             Spacer(Modifier.width(12.dp))
             Text(
-                "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH)} ${date.year}",
+                "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.FULL, locale)} ${date.year}",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -341,7 +300,7 @@ fun CalendarDateDetailScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "No stamps from this day",
+                    stringResource(R.string.calendar_no_stamps),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

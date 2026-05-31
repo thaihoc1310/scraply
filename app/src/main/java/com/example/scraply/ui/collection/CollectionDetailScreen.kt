@@ -35,6 +35,8 @@ import com.example.scraply.ui.common.CircleIconButton
 import com.example.scraply.ui.common.ScraplyDialog
 import com.example.scraply.ui.common.ScraplyDialogConfirmButton
 import com.example.scraply.ui.common.StampImage
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 
 private const val StampAspectRatio = 147f / 190f
 
@@ -50,7 +52,7 @@ fun CollectionDetailScreen(
     val all by vm.allStamps.collectAsState()
     val current = cards.firstOrNull { it.collection.id == collectionId }
     val isDefault = current?.collection?.isDefault == true
-    val title = current?.collection?.name ?: "Collection"
+    val title = if (isDefault) stringResource(R.string.all_stamps) else (current?.collection?.name ?: "Collection")
 
     var showAdd by remember { mutableStateOf(false) }
 
@@ -59,7 +61,7 @@ fun CollectionDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -68,7 +70,7 @@ fun CollectionDetailScreen(
         ) {
             CircleIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.calendar_back),
                 onClick = onBack,
             )
             Spacer(Modifier.weight(1f))
@@ -81,7 +83,7 @@ fun CollectionDetailScreen(
             if (!isDefault) {
                 CircleIconButton(
                     icon = Icons.Filled.Add,
-                    contentDescription = "Add stamps",
+                    contentDescription = stringResource(R.string.collections_add_stamps),
                     onClick = { showAdd = true },
                 )
             } else {
@@ -98,7 +100,7 @@ fun CollectionDetailScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "No stamps yet",
+                    stringResource(R.string.collections_no_stamps),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -166,12 +168,12 @@ private fun AddStampsDialog(
     onDismiss: () -> Unit,
 ) {
     ScraplyDialog(
-        title = "Add stamps",
+        title = stringResource(R.string.collections_add_stamps),
         onDismissRequest = onDismiss,
         content = {
             if (candidates.isEmpty()) {
                 Text(
-                    "Nothing left to add here.",
+                    stringResource(R.string.collections_nothing_left),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -199,7 +201,7 @@ private fun AddStampsDialog(
             }
         },
         actions = {
-            ScraplyDialogConfirmButton(label = "Done", onClick = onDismiss)
+            ScraplyDialogConfirmButton(label = stringResource(R.string.collections_done), onClick = onDismiss)
         },
     )
 }

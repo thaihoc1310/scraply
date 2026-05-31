@@ -28,6 +28,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -80,29 +82,27 @@ fun EditorProjectsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(
+                stringResource(R.string.editor_title),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Spacer(Modifier.weight(1f))
             CircleIconButton(
                 icon = Icons.Filled.Add,
-                contentDescription = "New project",
+                contentDescription = stringResource(R.string.editor_new_project),
                 onClick = { showCreate = true },
             )
         }
-        Spacer(Modifier.height(16.dp))
         Text(
-            "Editor",
-            style = MaterialTheme.typography.displayMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
-        Text(
-            "Projects",
+            stringResource(R.string.editor_projects),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -129,9 +129,9 @@ fun EditorProjectsScreen(
 
     if (showCreate) {
         TextDialog(
-            title = "New project",
-            placeholder = "Project name",
-            confirmLabel = "Create",
+            title = stringResource(R.string.editor_new_project),
+            placeholder = stringResource(R.string.editor_project_name),
+            confirmLabel = stringResource(R.string.collections_create),
             onConfirm = { name ->
                 if (name.isNotBlank()) vm.createProject(name.trim())
                 showCreate = false
@@ -142,10 +142,10 @@ fun EditorProjectsScreen(
     renaming?.let { id ->
         val current = projects.firstOrNull { it.project.id == id }?.project?.name.orEmpty()
         TextDialog(
-            title = "Rename project",
-            placeholder = "Project name",
+            title = stringResource(R.string.editor_rename_project),
+            placeholder = stringResource(R.string.editor_project_name),
             initial = current,
-            confirmLabel = "Save",
+            confirmLabel = stringResource(R.string.collections_save),
             onConfirm = { name ->
                 if (name.isNotBlank()) vm.renameProject(id, name.trim())
                 renaming = null
@@ -193,7 +193,7 @@ private fun ProjectCardView(
                 Box {
                     CircleIconButton(
                         icon = Icons.Filled.MoreHoriz,
-                        contentDescription = "More",
+                        contentDescription = stringResource(R.string.close),
                         onClick = { menuOpen = true },
                     )
                     ScraplyDropdownMenu(
@@ -201,12 +201,12 @@ private fun ProjectCardView(
                         onDismissRequest = { menuOpen = false },
                     ) {
                         ScraplyDropdownMenuItem(
-                            label = "Rename",
+                            label = stringResource(R.string.collections_rename),
                             icon = Icons.Filled.Edit,
                             onClick = { menuOpen = false; onRename() },
                         )
                         ScraplyDropdownMenuItem(
-                            label = "Delete",
+                            label = stringResource(R.string.collections_delete),
                             icon = Icons.Filled.Delete,
                             destructive = true,
                             onClick = { menuOpen = false; onDelete() },
@@ -238,9 +238,10 @@ private fun ProjectPreview(
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         contentAlignment = Alignment.Center,
     ) {
-        if (card.elements.isEmpty()) {
+        val hasCustomBackground = card.project.backgroundType.isNotEmpty() && card.project.backgroundType != "paper"
+        if (card.elements.isEmpty() && !hasCustomBackground) {
             Text(
-                "Empty canvas",
+                stringResource(R.string.editor_empty_canvas),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -291,12 +292,19 @@ private fun ProjectPreview(
     }
 }
 
+@Composable
 private fun projectMeta(card: ProjectCard): String {
     val stampCount = card.elements.count {
         it.type == CanvasElementType.STAMP || it.type == CanvasElementType.POLAROID
     }
     val elementCount = card.elementCount
-    val stampText = "$stampCount stamp${if (stampCount == 1) "" else "s"}"
-    val elementText = "$elementCount element${if (elementCount == 1) "" else "s"}"
+    val stampText = stringResource(
+        if (stampCount == 1) R.string.editor_stamp_count_singular else R.string.editor_stamp_count_plural,
+        stampCount
+    )
+    val elementText = stringResource(
+        if (elementCount == 1) R.string.editor_element_count_singular else R.string.editor_element_count_plural,
+        elementCount
+    )
     return if (stampCount > 0) "$stampText - $elementText" else elementText
 }

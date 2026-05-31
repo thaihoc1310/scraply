@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -38,8 +39,6 @@ import com.example.scraply.data.model.CanvasElement
 import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.StampImage
-
-private const val StampAspectRatio = 147f / 190f
 
 val BackgroundOptions = listOf(
     "bg_chalkboard" to "Chalkboard",
@@ -203,8 +202,8 @@ fun CanvasElementView(
             val stamp = stamps.firstOrNull { it.id == element.stampId }
             Box(
                 modifier = modifier
-                    .width(160.dp)
-                    .aspectRatio(StampAspectRatio),
+                    .width(EditorGeometry.StampWidthDp.dp)
+                    .aspectRatio(EditorGeometry.StampAspectRatio),
                 contentAlignment = Alignment.Center,
             ) {
                 if (stamp != null) {
@@ -363,7 +362,7 @@ fun CanvasElementView(
                         Box {
                             if (textFieldValue.value.text.isBlank()) {
                                 Text(
-                                    text = "Tap to edit",
+                                    text = stringResource(R.string.editor_tap_to_edit),
                                     style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
                                 )
                             }
@@ -374,7 +373,7 @@ fun CanvasElementView(
             } else {
                 // Read-only text display - no keyboard, no focus
                 Text(
-                    text = element.text.ifBlank { "Tap to edit" },
+                    text = element.text.ifBlank { stringResource(R.string.editor_tap_to_edit) },
                     style = textStyle.let {
                         if (element.text.isBlank()) it.copy(color = it.color.copy(alpha = 0.55f)) else it
                     },

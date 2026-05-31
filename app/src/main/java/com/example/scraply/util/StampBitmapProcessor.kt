@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.Rect
+import android.graphics.RectF
 import android.media.ExifInterface
 import androidx.compose.ui.unit.IntSize
 import com.example.scraply.R
@@ -33,8 +34,9 @@ object StampBitmapProcessor {
         source: Bitmap,
         previewSize: IntSize,
         cutterScale: Float = 1f,
+        includeStroke: Boolean = false,
     ): Bitmap = withContext(Dispatchers.Default) {
-        cutRaw(context, source, previewSize.width, previewSize.height, cutterScale)
+        cutRaw(context, source, previewSize.width, previewSize.height, cutterScale, includeStroke)
     }
 
     /**
@@ -47,9 +49,10 @@ object StampBitmapProcessor {
         previewWidth: Int,
         previewHeight: Int,
         cutterScale: Float = 1f,
+        includeStroke: Boolean = false,
     ): Bitmap {
         if (previewWidth <= 0 || previewHeight <= 0) {
-            return applyMask(context, source)
+            return applyMask(context, source, includeStroke)
         }
 
         // Calculate crop region using LiveStamp's logic
@@ -77,13 +80,13 @@ object StampBitmapProcessor {
         val cropped = Bitmap.createBitmap(source, left, top, finalWidth, finalHeight)
 
         // Apply stamp mask
-        return applyMask(context, cropped)
+        return applyMask(context, cropped, includeStroke)
     }
 
     /**
      * Apply stamp mask using PorterDuff.DST_IN.
      */
-    private fun applyMask(context: Context, source: Bitmap): Bitmap {
+    private fun applyMask(context: Context, source: Bitmap, includeStroke: Boolean): Bitmap {
         val maskDrawable = context.getDrawable(R.drawable.stamp_mask)
             ?: throw IllegalStateException("Stamp mask drawable missing")
 
@@ -97,6 +100,11 @@ object StampBitmapProcessor {
 
         paint.xfermode = android.graphics.PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         canvas.drawBitmap(mask, 0f, 0f, paint)
+        paint.xfermode = null
+
+        if (includeStroke) {
+            drawStampStroke(context, canvas, source.width, source.height)
+        }
 
         mask.recycle()
 
@@ -144,6 +152,17 @@ object StampBitmapProcessor {
         return bitmap
     }
 
+    private fun drawStampStroke(context: Context, canvas: Canvas, width: Int, height: Int) {
+        val stroke = BitmapFactory.decodeResource(context.resources, R.drawable.stamp_stroke) ?: return
+        canvas.drawBitmap(
+            stroke,
+            null,
+            RectF(0f, 0f, width.toFloat(), height.toFloat()),
+            Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG),
+        )
+        stroke.recycle()
+    }
+
     /**
      * Blocking version.
      */
@@ -152,8 +171,9 @@ object StampBitmapProcessor {
         source: Bitmap,
         previewSize: IntSize,
         cutterScale: Float = 1f,
+        includeStroke: Boolean = false,
     ): Bitmap {
-        return cutRaw(context, source, previewSize.width, previewSize.height, cutterScale)
+        return cutRaw(context, source, previewSize.width, previewSize.height, cutterScale, includeStroke)
     }
 
     fun rotateToUpright(source: Bitmap, degrees: Int): Bitmap {

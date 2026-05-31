@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.scraply.R
 
@@ -58,13 +59,13 @@ private fun BottomTabIcon(tab: BottomTab) {
     if (tab == BottomTab.STAMP) {
         Icon(
             painter = painterResource(R.drawable.seal_fill_icon),
-            contentDescription = tab.label,
+            contentDescription = stringResource(tab.labelResId),
             modifier = Modifier.size(24.dp),
         )
     } else {
         Icon(
             imageVector = tab.icon,
-            contentDescription = tab.label,
+            contentDescription = stringResource(tab.labelResId),
             modifier = Modifier.size(24.dp),
         )
     }

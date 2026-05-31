@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -14,6 +17,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import com.example.scraply.ui.calendar.CalendarDateDetailScreen
 import com.example.scraply.ui.calendar.CalendarScreen
 import com.example.scraply.ui.calendar.CalendarViewModel
@@ -35,6 +43,11 @@ import com.example.scraply.ui.stamp.StampCameraScreen
 import com.example.scraply.ui.stamp.StampCropScreen
 import com.example.scraply.ui.stamp.StampDetailsScreen
 import com.example.scraply.ui.stamp.StampCaptureViewModel
+import com.example.scraply.ui.settings.SettingsScreen
+import com.example.scraply.ui.settings.RecentLikesScreen
+import com.example.scraply.ui.settings.RecentCommentsScreen
+import com.example.scraply.ui.settings.AboutScreen
+import com.example.scraply.ui.social.EditProfileScreen
 import com.example.scraply.ui.vm.scraplyViewModel
 
 @Composable
@@ -43,6 +56,17 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
     val currentRoute = backStack?.destination?.route
     val currentTab = BottomTab.entries.firstOrNull { tab ->
         currentRoute == tab.route
+    }
+    var isFeedPostOpening by remember { mutableStateOf(false) }
+    var isProfilePostOpening by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == Routes.FEED) {
+            isFeedPostOpening = false
+        }
+        if (currentRoute == Routes.PROFILE) {
+            isProfilePostOpening = false
+        }
     }
 
     Scaffold(
@@ -74,6 +98,7 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 StampCameraScreen(
                     vm = vm,
                     onCaptured = { uri -> navController.navigate(Routes.stampCrop(uri)) },
+                    onOpenUpload = { navController.navigate(Routes.UPLOAD_STAMP) },
                 )
             }
 
@@ -111,7 +136,6 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 CollectionsScreen(
                     vm = vm,
                     onOpenCollection = { id -> navController.navigate(Routes.collectionDetail(id)) },
-                    onOpenUpload = { navController.navigate(Routes.UPLOAD_STAMP) },
                     onOpenCalendar = { navController.navigate(Routes.CALENDAR) },
                 )
             }
@@ -171,6 +195,16 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     vm = vm,
                     projectId = id,
                     onBack = { navController.popBackStack() },
+                    onPublished = { postId ->
+                        navController.navigate(Routes.FEED) {
+                            popUpTo(Routes.STAMP) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                        navController.navigate(Routes.feedPost(postId)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -200,7 +234,13 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             composable(Routes.FEED) {
                 FeedScreen(
                     onOpenPost = { id ->
-                        navController.navigate(Routes.feedPost(id))
+                        if (!isFeedPostOpening) {
+                            isFeedPostOpening = true
+                            navController.navigate(Routes.feedPost(id)) {
+                                popUpTo(Routes.FEED) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
                     }
                 )
             }
@@ -218,6 +258,13 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     postId = postId,
                     showComments = showComments,
                     onBack = { navController.popBackStack() },
+                    onDeleted = {
+                        if (!navController.popBackStack(Routes.FEED, inclusive = false)) {
+                            navController.navigate(Routes.FEED) {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                 )
             }
 
@@ -235,7 +282,16 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             composable(Routes.PROFILE) {
                 ProfileScreen(
                     onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
-                    onOpenPost = { id -> navController.navigate(Routes.profilePosts(id)) },
+                    onOpenPost = { id ->
+                        if (!isProfilePostOpening) {
+                            isProfilePostOpening = true
+                            navController.navigate(Routes.profilePosts(id)) {
+                                popUpTo(Routes.PROFILE) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
 
@@ -244,9 +300,22 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 arguments = listOf(navArgument("postId") { type = NavType.StringType }),
             ) { backStackEntry ->
                 val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                val profileEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.PROFILE)
+                }
+                val vm: com.example.scraply.ui.social.ProfileViewModel =
+                    scraplyViewModel(viewModelStoreOwner = profileEntry)
                 ProfilePostsFeedScreen(
+                    vm = vm,
                     initialPostId = postId,
                     onBack = { navController.popBackStack() },
+                    onDeleted = {
+                        if (!navController.popBackStack(Routes.PROFILE, inclusive = false)) {
+                            navController.navigate(Routes.PROFILE) {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                 )
             }
 
@@ -256,6 +325,198 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     onOpenPost = { id, showComments ->
                         navController.navigate(Routes.feedPost(id, showComments))
                     },
+                )
+            }
+
+            composable(
+                Routes.SETTINGS,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                val profileEntry = remember(it) {
+                    navController.getBackStackEntry(Routes.PROFILE)
+                }
+                val profileVm: com.example.scraply.ui.social.ProfileViewModel =
+                    scraplyViewModel(viewModelStoreOwner = profileEntry)
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onEditProfile = {
+                        navController.navigate(Routes.EDIT_PROFILE)
+                    },
+                    onOpenRecentLikes = {
+                        navController.navigate(Routes.RECENT_LIKES)
+                    },
+                    onOpenRecentComments = {
+                        navController.navigate(Routes.RECENT_COMMENTS)
+                    },
+                    onOpenAbout = {
+                        navController.navigate(Routes.ABOUT)
+                    },
+                    onSignOut = {
+                        profileVm.signOut()
+                    },
+                )
+            }
+
+            composable(
+                Routes.RECENT_LIKES,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                RecentLikesScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPost = { postId ->
+                        navController.navigate(Routes.feedPost(postId))
+                    }
+                )
+            }
+
+            composable(
+                Routes.RECENT_COMMENTS,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                RecentCommentsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPost = { postId ->
+                        navController.navigate(Routes.feedPost(postId))
+                    }
+                )
+            }
+
+            composable(
+                Routes.EDIT_PROFILE,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                val profileEntry = remember(it) {
+                    navController.getBackStackEntry(Routes.PROFILE)
+                }
+                val profileVm: com.example.scraply.ui.social.ProfileViewModel =
+                    scraplyViewModel(viewModelStoreOwner = profileEntry)
+                EditProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    viewModel = profileVm
+                )
+            }
+
+            composable(
+                Routes.ABOUT,
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) {
+                AboutScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

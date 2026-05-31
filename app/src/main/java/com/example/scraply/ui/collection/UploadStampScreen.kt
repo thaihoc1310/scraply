@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,7 +38,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -46,8 +48,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.scraply.ui.stamp.StampFrameOverlay
+import com.example.scraply.util.CutterGeometry
 import com.example.scraply.util.ImageUtils
-import com.example.scraply.util.PostageStampShape
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -88,16 +90,16 @@ fun UploadStampScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 40.dp, start = 20.dp, end = 20.dp),
+                .padding(top = 24.dp, start = 20.dp, end = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(
                 onClick = onClose,
                 shape = RoundedCornerShape(18.dp),
-            ) { Text("Close") }
+            ) { Text(stringResource(R.string.close)) }
             Spacer(Modifier.weight(1f))
             Text(
-                "Upload Stamp",
+                stringResource(R.string.upload_stamp),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -131,7 +133,7 @@ fun UploadStampScreen(
                     }
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "Pick a photo to cut a stamp",
+                        stringResource(R.string.pick_photo_prompt),
                         color = Color.White,
                         style = MaterialTheme.typography.bodyLarge,
                     )
@@ -140,17 +142,7 @@ fun UploadStampScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.88f)
-                        .clip(PostageStampShape)
-                        .background(Color.White)
-                        .pointerInput(bitmap) {
-                            detectTransformGestures { _, pan, gestureZoom, _ ->
-                                scale = (scale * gestureZoom).coerceIn(0.5f, 4f)
-                                val w = size.width.toFloat().coerceAtLeast(1f)
-                                val h = size.height.toFloat().coerceAtLeast(1f)
-                                offsetX = (offsetX + pan.x / w).coerceIn(-1f, 1f)
-                                offsetY = (offsetY + pan.y / h).coerceIn(-1f, 1f)
-                            }
-                        },
+                        .aspectRatio(CutterGeometry.cutterWidth / CutterGeometry.cutterHeight),
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
@@ -159,6 +151,15 @@ fun UploadStampScreen(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .fillMaxSize()
+                            .pointerInput(bitmap) {
+                                detectTransformGestures { _, pan, gestureZoom, _ ->
+                                    scale = (scale * gestureZoom).coerceIn(0.5f, 4f)
+                                    val w = size.width.toFloat().coerceAtLeast(1f)
+                                    val h = size.height.toFloat().coerceAtLeast(1f)
+                                    offsetX = (offsetX + pan.x / w).coerceIn(-1f, 1f)
+                                    offsetY = (offsetY + pan.y / h).coerceIn(-1f, 1f)
+                                }
+                            }
                             .graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
@@ -166,10 +167,10 @@ fun UploadStampScreen(
                                 translationY = offsetY * size.height
                             },
                     )
+                    StampFrameOverlay(
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-                StampFrameOverlay(
-                    modifier = Modifier.fillMaxWidth(0.88f)
-                )
             }
         }
 
@@ -180,7 +181,7 @@ fun UploadStampScreen(
                 .padding(16.dp),
         ) {
             Text(
-                "Drag image. Pinch to zoom.",
+                stringResource(R.string.drag_pinch_hint),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.fillMaxWidth(),
@@ -197,7 +198,7 @@ fun UploadStampScreen(
                     },
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.weight(1f),
-                ) { Text("Choose Photo") }
+                ) { Text(stringResource(R.string.choose_photo)) }
                 Button(
                     enabled = bitmap != null,
                     onClick = {
@@ -221,7 +222,7 @@ fun UploadStampScreen(
                         containerColor = MaterialTheme.colorScheme.tertiary,
                     ),
                     modifier = Modifier.weight(1f),
-                ) { Text("Cut Stamp") }
+                ) { Text(stringResource(R.string.cut_stamp)) }
             }
         }
     }

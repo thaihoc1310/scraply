@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -36,7 +37,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.scraply.data.remote.NotificationItem
@@ -45,6 +49,8 @@ import com.example.scraply.ui.vm.scraplyViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 
 @Composable
 fun NotificationsScreen(
@@ -65,23 +71,23 @@ fun NotificationsScreen(
     Column(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(24.dp))
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.notif_back))
             }
             Text(
-                "Notifications",
+                stringResource(R.string.notif_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.weight(1f))
             if (state.unreadCount > 0) {
                 IconButton(onClick = { vm.markAllRead() }) {
-                    Icon(Icons.Filled.DoneAll, contentDescription = "Mark all read")
+                    Icon(Icons.Filled.DoneAll, contentDescription = stringResource(R.string.notif_mark_all_read))
                 }
             }
         }
@@ -89,8 +95,8 @@ fun NotificationsScreen(
         if (!state.isSignedIn) {
             EmptyState(
                 icon = Icons.Filled.Notifications,
-                title = "No notifications yet",
-                subtitle = "Sign in to see activity on your scrapbooks.",
+                title = stringResource(R.string.notif_empty_signed_out_title),
+                subtitle = stringResource(R.string.notif_empty_signed_out_subtitle),
             )
             return
         }
@@ -98,8 +104,8 @@ fun NotificationsScreen(
         if (state.items.isEmpty()) {
             EmptyState(
                 icon = Icons.Filled.Notifications,
-                title = "You're all caught up",
-                subtitle = "Likes, comments and new followers will show up here.",
+                title = stringResource(R.string.notif_empty_title),
+                subtitle = stringResource(R.string.notif_empty_subtitle),
             )
         } else {
             LazyColumn(
@@ -132,45 +138,79 @@ private fun NotificationRow(item: NotificationItem, onClick: () -> Unit) {
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val showActorAvatar = item.type == NotificationType.LIKE || item.type == NotificationType.COMMENT
         Box(
-            modifier = Modifier.size(40.dp).clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.size(40.dp),
             contentAlignment = Alignment.Center,
         ) {
-            if (item.actorAvatar != null) {
-                AsyncImage(
-                    model = item.actorAvatar,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Icon(iconFor(item.type), contentDescription = null, modifier = Modifier.size(22.dp))
+            Box(
+                modifier = Modifier.matchParentSize()
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (showActorAvatar) {
+                    if (item.actorAvatar != null) {
+                        AsyncImage(
+                            model = item.actorAvatar,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text(
+                            (item.actorName ?: "?").take(1).uppercase(),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                } else {
+                    Icon(iconFor(item.type), contentDescription = null, modifier = Modifier.size(22.dp))
+                }
             }
-            Icon(
-                iconFor(item.type),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.align(Alignment.BottomEnd)
-                    .size(18.dp)
-                    .background(tintFor(item.type), CircleShape)
-                    .padding(3.dp),
-            )
+            if (showActorAvatar) {
+                Icon(
+                    iconFor(item.type),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(18.dp)
+                        .background(tintFor(item.type), CircleShape)
+                        .padding(3.dp),
+                )
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Row {
-                Text(
-                    item.actorName ?: "Someone",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    item.text ?: defaultText(item.type),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            val displayNotificationText = when {
+                item.type == NotificationType.LIKE || item.text == "liked your scrapbook" -> {
+                    stringResource(R.string.notif_liked_your_scrapbook)
+                }
+                item.type == NotificationType.FOLLOW || item.text == "started following you" -> {
+                    stringResource(R.string.notif_started_following)
+                }
+                item.type == NotificationType.COMMENT || item.text?.startsWith("commented:") == true -> {
+                    val commentContent = item.text?.removePrefix("commented:")?.trim() ?: ""
+                    if (commentContent.isNotEmpty()) {
+                        stringResource(R.string.notif_left_comment) + ": $commentContent"
+                    } else {
+                        stringResource(R.string.notif_left_comment)
+                    }
+                }
+                else -> item.text ?: defaultText(item.type)
             }
+            val annotatedText = buildAnnotatedString {
+                withStyle(style = SpanStyle(fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)) {
+                    append(item.actorName ?: stringResource(R.string.notif_someone))
+                }
+                append(" ")
+                append(displayNotificationText)
+            }
+            Text(
+                text = annotatedText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Text(
                 formatTime(item.createdAt),
                 style = MaterialTheme.typography.labelSmall,
@@ -226,21 +266,28 @@ private fun tintFor(type: String): Color = when (type) {
     else -> MaterialTheme.colorScheme.secondary
 }
 
+@Composable
 private fun defaultText(type: String): String = when (type) {
-    NotificationType.LIKE -> "liked your scrapbook"
-    NotificationType.COMMENT -> "left a comment"
-    NotificationType.FOLLOW -> "started following you"
-    else -> "sent you a notification"
+    NotificationType.LIKE -> stringResource(R.string.notif_liked_your_scrapbook)
+    NotificationType.COMMENT -> stringResource(R.string.notif_left_comment)
+    NotificationType.FOLLOW -> stringResource(R.string.notif_started_following)
+    else -> stringResource(R.string.notif_generic)
 }
 
+@Composable
 private fun formatTime(epochMs: Long): String {
-    if (epochMs == 0L) return "just now"
+    val justNow = stringResource(R.string.time_just_now)
+    if (epochMs == 0L) return justNow
     val diff = System.currentTimeMillis() - epochMs
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     return when {
-        diff < 60_000 -> "just now"
-        diff < 3_600_000 -> "${diff / 60_000}m ago"
-        diff < 86_400_000 -> "${diff / 3_600_000}h ago"
-        diff < 7L * 86_400_000 -> "${diff / 86_400_000}d ago"
-        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(epochMs))
+        diff < 60_000 -> justNow
+        diff < 3_600_000 -> stringResource(R.string.time_minutes_ago, diff / 60_000)
+        diff < 86_400_000 -> stringResource(R.string.time_hours_ago, diff / 3_600_000)
+        diff < 7L * 86_400_000 -> stringResource(R.string.time_days_ago, diff / 86_400_000)
+        else -> {
+            val pattern = if (locale.language == "vi") "d 'thg' M" else "MMM d"
+            SimpleDateFormat(pattern, locale).format(Date(epochMs))
+        }
     }
 }

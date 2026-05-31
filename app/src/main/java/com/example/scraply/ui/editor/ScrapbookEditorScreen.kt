@@ -3,6 +3,7 @@ package com.example.scraply.ui.editor
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import java.util.Locale
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -104,6 +105,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.stringResource
+import com.example.scraply.R
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -148,6 +151,7 @@ fun ScrapbookEditorScreen(
     vm: EditorViewModel,
     projectId: String,
     onBack: () -> Unit,
+    onPublished: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -163,8 +167,9 @@ fun ScrapbookEditorScreen(
     LaunchedEffect(publishState) {
         when (val s = publishState) {
             is PublishState.Success -> {
-                Toast.makeText(context, "Published to feed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.editor_published_toast), Toast.LENGTH_SHORT).show()
                 vm.dismissPublishState()
+                onPublished(s.postId)
             }
             is PublishState.Error -> {
                 Toast.makeText(context, s.message, Toast.LENGTH_LONG).show()
@@ -183,7 +188,7 @@ fun ScrapbookEditorScreen(
     var showAssetsSheet by remember { mutableStateOf(false) }
     var showTextStyle by remember { mutableStateOf(false) }
     var textStyleElementId by remember { mutableStateOf<String?>(null) }
-    var showStampPicker by remember { mutableStateOf<PickerMode?>(null) }
+    var showStampPicker: PickerMode? by remember { mutableStateOf(null) }
     var editingText by remember { mutableStateOf<String?>(null) }
     var showPublishPreview by remember { mutableStateOf<Bitmap?>(null) }
     var fabExpanded by remember { mutableStateOf(false) }
@@ -229,7 +234,7 @@ fun ScrapbookEditorScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(24.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,7 +243,7 @@ fun ScrapbookEditorScreen(
             ) {
                 CircleIconButton(
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.calendar_back),
                     onClick = {
                         vm.saveCurrent()
                         onBack()
@@ -263,7 +268,7 @@ fun ScrapbookEditorScreen(
                 ) {
                     CircleIconButton(
                         icon = Icons.Filled.Wallpaper,
-                        contentDescription = "Backgrounds",
+                        contentDescription = stringResource(R.string.editor_background),
                         onClick = { showBackgrounds = true },
                     )
                     Spacer(Modifier.width(10.dp))
@@ -272,7 +277,7 @@ fun ScrapbookEditorScreen(
                         var topMenuOpen by remember { mutableStateOf(false) }
                         CircleIconButton(
                             icon = Icons.Filled.MoreHoriz,
-                            contentDescription = "More options",
+                            contentDescription = stringResource(R.string.close),
                             onClick = { topMenuOpen = true }
                         )
                         ScraplyDropdownMenu(
@@ -280,7 +285,7 @@ fun ScrapbookEditorScreen(
                             onDismissRequest = { topMenuOpen = false }
                         ) {
                             ScraplyDropdownMenuItem(
-                                label = "Share",
+                                label = stringResource(R.string.editor_share),
                                 icon = Icons.Filled.IosShare,
                                 onClick = { 
                                     topMenuOpen = false
@@ -295,13 +300,13 @@ fun ScrapbookEditorScreen(
                                             }
                                             context.startActivity(Intent.createChooser(intent, "Share Scrapbook"))
                                         } else {
-                                            Toast.makeText(context, "Share failed", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, context.getString(R.string.editor_share_failed_toast), Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 }
                             )
                             ScraplyDropdownMenuItem(
-                                label = "Save to photos",
+                                label = stringResource(R.string.editor_save_photos),
                                 icon = Icons.Filled.Download,
                                 onClick = {
                                     topMenuOpen = false
@@ -314,7 +319,7 @@ fun ScrapbookEditorScreen(
                                         )
                                         Toast.makeText(
                                             context,
-                                            if (saved) "Saved to Pictures/Scraply" else "Could not save image",
+                                            if (saved) context.getString(R.string.editor_save_success_toast) else context.getString(R.string.editor_save_failed_toast),
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                     }
@@ -322,7 +327,7 @@ fun ScrapbookEditorScreen(
                             )
                             if (vm.canPublish) {
                                 ScraplyDropdownMenuItem(
-                                    label = "Publish to feed",
+                                    label = stringResource(R.string.editor_publish_feed),
                                     icon = Icons.Filled.Public,
                                     onClick = { 
                                         topMenuOpen = false
@@ -347,7 +352,7 @@ fun ScrapbookEditorScreen(
                     .clipToBounds()
             ) {
                 val ratio = canvas.aspectRatio
-                val canvasBaseHeight = 600.dp
+                val canvasBaseHeight = EditorGeometry.CanvasBaseHeightDp.dp
                 val localWidth = canvasBaseHeight * ratio
                 val localHeight = canvasBaseHeight
 
@@ -432,19 +437,21 @@ fun ScrapbookEditorScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 8.dp),
+                horizontalArrangement = if (selectedId != null) Arrangement.SpaceBetween else Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 OutlinedButton(
-                    onClick = { vm.undo() },
+                    onClick = {
+                        vm.undo()
+                        endInlineTextEdit()
+                    },
                     shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
                 ) {
                     Icon(Icons.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Undo")
+                    Text(stringResource(R.string.editor_undo))
                 }
                 selectedId?.let { id ->
                     val sel = canvas.elements.firstOrNull { it.id == id }
@@ -452,14 +459,14 @@ fun ScrapbookEditorScreen(
                         OutlinedButton(
                             onClick = { vm.bringToFront(id) },
                             shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Icon(Icons.Filled.FlipToFront, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         OutlinedButton(
                             onClick = { vm.sendToBack(id) },
                             shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Icon(Icons.Filled.FlipToBack, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
@@ -470,29 +477,29 @@ fun ScrapbookEditorScreen(
                                     showTextStyle = true
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
                             ) {
                                 Icon(Icons.Filled.Brush, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Style")
+                                Text(stringResource(R.string.editor_background_tab_style))
                             }
                         } else {
                             OutlinedButton(
                                 onClick = {
-                                    vm.updateElement(id) { it.copy(isFlipped = !it.isFlipped) }
+                                    vm.updateElement(id, saveUndo = true) { it.copy(isFlipped = !it.isFlipped) }
                                 },
                                 shape = RoundedCornerShape(14.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
                             ) {
                                 Icon(Icons.Filled.Flip, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("Flip")
+                                Text(stringResource(R.string.editor_flip))
                             }
                         }
                         OutlinedButton(
                             onClick = { vm.deleteElement(id) },
                             shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Icon(
                                 Icons.Filled.Delete,
@@ -501,7 +508,7 @@ fun ScrapbookEditorScreen(
                                 tint = MaterialTheme.colorScheme.error,
                             )
                             Spacer(Modifier.width(4.dp))
-                            Text("Delete", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.editor_delete), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -524,7 +531,7 @@ fun ScrapbookEditorScreen(
                 onAddText = {
                     fabExpanded = false
                     val font = FontPresets.first().first
-                    vm.addElement(type = CanvasElementType.TEXT, assetKey = font, text = "Text")
+                    vm.addElement(type = CanvasElementType.TEXT, assetKey = font, text = "")
                     val id = vm.canvas.value.elements.lastOrNull()?.id
                     if (id != null) {
                         vm.updateElement(id) { it.copy(font = font) }
@@ -544,7 +551,7 @@ fun ScrapbookEditorScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(color = Color.White)
                     Spacer(Modifier.height(12.dp))
-                    Text("Publishing to feed…", color = Color.White)
+                    Text(stringResource(R.string.editor_publishing_overlay), color = Color.White)
                 }
             }
         }
@@ -570,7 +577,7 @@ fun ScrapbookEditorScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "Publish to Feed",
+                    stringResource(R.string.editor_publish_feed),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -578,7 +585,7 @@ fun ScrapbookEditorScreen(
 
                 Image(
                     bitmap = bmp.asImageBitmap(),
-                    contentDescription = "Preview",
+                    contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth(0.6f)
                         .aspectRatio(canvasSize.width.toFloat() / canvasSize.height.toFloat())
@@ -591,7 +598,7 @@ fun ScrapbookEditorScreen(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { if (it.length <= 1000) title = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.stamp_title)) },
                     leadingIcon = { Icon(Icons.Filled.Edit, null) },
                     modifier = Modifier.fillMaxWidth(),
                     supportingText = { Text("${title.length}/1000") },
@@ -603,7 +610,7 @@ fun ScrapbookEditorScreen(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { if (it.length <= 1000) description = it },
-                    label = { Text("Description") },
+                    label = { Text(stringResource(R.string.stamp_caption)) },
                     leadingIcon = {
                         Icon(
                             Icons.Filled.ChatBubble,
@@ -624,7 +631,7 @@ fun ScrapbookEditorScreen(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = { showPublishPreview = null }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.feed_cancel))
                     }
                     Spacer(Modifier.width(16.dp))
                     Button(
@@ -633,7 +640,7 @@ fun ScrapbookEditorScreen(
                             showPublishPreview = null
                         }
                     ) {
-                        Text("Publish")
+                        Text(stringResource(R.string.feed_post))
                     }
                 }
             }
@@ -672,10 +679,10 @@ fun ScrapbookEditorScreen(
             TextStyleSheet(
                 element = textEl,
                 onFontChange = { font ->
-                    vm.updateElement(textEl.id) { it.copy(font = font) }
+                    vm.updateElement(textEl.id, saveUndo = true) { it.copy(font = font) }
                 },
                 onColorChange = { color ->
-                    vm.updateElement(textEl.id) { it.copy(color = color) }
+                    vm.updateElement(textEl.id, saveUndo = true) { it.copy(color = color) }
                 },
                 onDismiss = {
                     showTextStyle = false
@@ -755,19 +762,20 @@ private fun CanvasElementOnBoard(
     if (canvasSize == IntSize.Zero) return
     val w = canvasSize.width.toFloat()
     val h = canvasSize.height.toFloat()
+    val fittedElement = EditorGeometry.fitStampInsideCanvas(element, w / h)
 
     // rememberUpdatedState giữ reference luôn trỏ tới giá trị mới nhất,
     // tránh stale closure trong pointerInput (key = element.id không đổi).
-    val latestElement by rememberUpdatedState(element)
+    val latestElement by rememberUpdatedState(fittedElement)
 
     Box(
         modifier = Modifier
             .graphicsLayer {
-                translationX = element.x * w - size.width / 2f
-                translationY = element.y * h - size.height / 2f
-                scaleX = if (element.isFlipped) -element.scale else element.scale
-                scaleY = element.scale
-                rotationZ = element.rotation
+                translationX = fittedElement.x * w - size.width / 2f
+                translationY = fittedElement.y * h - size.height / 2f
+                scaleX = if (fittedElement.isFlipped) -fittedElement.scale else fittedElement.scale
+                scaleY = fittedElement.scale
+                rotationZ = fittedElement.rotation
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
             }
             .then(
@@ -785,7 +793,7 @@ private fun CanvasElementOnBoard(
                 },
             )
             .then(
-                if (selected) {
+                if (selected && !isEditing) {
                     Modifier
                         .pointerInput(element.id) {
                             awaitEachGesture {
@@ -806,22 +814,34 @@ private fun CanvasElementOnBoard(
                                 val cosA = kotlin.math.cos(angleRad).toFloat()
                                 val sinA = kotlin.math.sin(angleRad).toFloat()
 
-                                val dx = (pan.x * cosA - pan.y * sinA) * el.scale
-                                val dy = (pan.x * sinA + pan.y * cosA) * el.scale
+                                val adjustedPanX = if (el.isFlipped) -pan.x else pan.x
+                                val dx = (adjustedPanX * cosA - pan.y * sinA) * el.scale
+                                val dy = (adjustedPanX * sinA + pan.y * cosA) * el.scale
 
-                                val hwN = (size.width * el.scale / 2f) / w
-                                val hhN = (size.height * el.scale / 2f) / h
-
-                                val minX = kotlin.math.min(hwN, 1f - hwN)
-                                val maxX = kotlin.math.max(hwN, 1f - hwN)
-                                val minY = kotlin.math.min(hhN, 1f - hhN)
-                                val maxY = kotlin.math.max(hhN, 1f - hhN)
-
-                                val nx = (el.x + dx / w).coerceIn(minX, maxX)
-                                val ny = (el.y + dy / h).coerceIn(minY, maxY)
                                 val ns = (el.scale * zoom).coerceIn(0.2f, 4f)
                                 val nr = el.rotation + rot
-                                onUpdate(el.copy(x = nx, y = ny, scale = ns, rotation = nr))
+                                val updated = el.copy(
+                                    x = el.x + dx / w,
+                                    y = el.y + dy / h,
+                                    scale = ns,
+                                    rotation = nr,
+                                )
+                                if (el.type == CanvasElementType.STAMP) {
+                                    onUpdate(EditorGeometry.fitStampInsideCanvas(updated, w / h))
+                                } else {
+                                    val hwN = (size.width * el.scale / 2f) / w
+                                    val hhN = (size.height * el.scale / 2f) / h
+                                    val minX = kotlin.math.min(hwN, 1f - hwN)
+                                    val maxX = kotlin.math.max(hwN, 1f - hwN)
+                                    val minY = kotlin.math.min(hhN, 1f - hhN)
+                                    val maxY = kotlin.math.max(hhN, 1f - hhN)
+                                    onUpdate(
+                                        updated.copy(
+                                            x = updated.x.coerceIn(minX, maxX),
+                                            y = updated.y.coerceIn(minY, maxY),
+                                        ),
+                                    )
+                                }
                             }
                         }
                 } else Modifier
@@ -835,7 +855,7 @@ private fun CanvasElementOnBoard(
             ),
     ) {
         CanvasElementView(
-            element = element, 
+            element = fittedElement,
             stamps = stamps,
             isEditing = isEditing,
             onStartTextEdit = onBeginTextEdit,
@@ -858,12 +878,13 @@ private fun AspectRatioPickerContent(
     sheetState: SheetState,
     onRatioChange: (Float) -> Unit,
 ) {
+    val isVi = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "vi"
     val options = listOf(
-        AspectRatioOption("9:16", 0.5625f, "Portrait (Stories / Reels)"),
-        AspectRatioOption("3:4", 0.75f, "Portrait (Instagram / Standard)"),
-        AspectRatioOption("1:1", 1f, "Square (Feed post)"),
-        AspectRatioOption("4:3", 1.333f, "Landscape (Classic photography)"),
-        AspectRatioOption("16:9", 1.777f, "Cinematic (Widescreen)"),
+        AspectRatioOption("9:16", 0.5625f, if (isVi) "Dọc (Tin / Reels)" else "Portrait (Stories / Reels)"),
+        AspectRatioOption("3:4", 0.75f, if (isVi) "Dọc (Instagram / Tiêu chuẩn)" else "Portrait (Instagram / Standard)"),
+        AspectRatioOption("1:1", 1f, if (isVi) "Vuông (Bảng tin)" else "Square (Feed post)"),
+        AspectRatioOption("4:3", 1.333f, if (isVi) "Ngang (Cổ điển)" else "Landscape (Classic photography)"),
+        AspectRatioOption("16:9", 1.777f, if (isVi) "Điện ảnh (Màn rộng)" else "Cinematic (Widescreen)"),
     )
     val scrollState = rememberScrollState()
 
@@ -962,7 +983,7 @@ private fun BackgroundsSheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Background",
+                    stringResource(R.string.editor_background),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -975,7 +996,7 @@ private fun BackgroundsSheet(
                         }
                     },
                     shape = RoundedCornerShape(18.dp),
-                ) { Text("Done") }
+                ) { Text(stringResource(R.string.settings_done)) }
             }
             Spacer(Modifier.height(12.dp))
             Row(
@@ -986,7 +1007,10 @@ private fun BackgroundsSheet(
             ) {
                 BackgroundTab.entries.forEach { t ->
                     TabChip(
-                        label = t.label,
+                        label = stringResource(
+                            if (t == BackgroundTab.Style) R.string.editor_background_tab_style
+                            else R.string.editor_background_tab_ratio
+                        ),
                         selected = tab == t,
                         onClick = { tab = t },
                         modifier = Modifier.weight(1f),
@@ -1047,7 +1071,7 @@ private fun AssetsOnlySheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Assets",
+                    stringResource(R.string.editor_assets),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1060,7 +1084,7 @@ private fun AssetsOnlySheet(
                         }
                     },
                     shape = RoundedCornerShape(18.dp),
-                ) { Text("Done") }
+                ) { Text(stringResource(R.string.settings_done)) }
             }
             Spacer(Modifier.height(12.dp))
             Box(modifier = Modifier.weight(1f)) {
@@ -1110,7 +1134,7 @@ private fun TextStyleSheet(
                 Spacer(Modifier.width(64.dp))
                 Spacer(Modifier.weight(1f))
                 Text(
-                    "Text Style",
+                    stringResource(R.string.editor_text_style),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1118,7 +1142,7 @@ private fun TextStyleSheet(
                 OutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(18.dp),
-                ) { Text("Done") }
+                ) { Text(stringResource(R.string.settings_done)) }
             }
             Spacer(Modifier.height(12.dp))
             Row(
@@ -1129,7 +1153,10 @@ private fun TextStyleSheet(
             ) {
                 TextStyleTab.entries.forEach { t ->
                     TabChip(
-                        label = t.label,
+                        label = stringResource(
+                            if (t == TextStyleTab.Font) R.string.editor_font
+                            else R.string.editor_color
+                        ),
                         selected = tab == t,
                         onClick = { tab = t },
                         modifier = Modifier.weight(1f),
@@ -1156,12 +1183,13 @@ private fun FontPresetsContent(
     currentFont: String,
     onFontChange: (String) -> Unit,
 ) {
+    val isVi = androidx.compose.ui.platform.LocalConfiguration.current.locales[0].language == "vi"
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            "Font Presets",
+            stringResource(R.string.editor_font),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1186,7 +1214,7 @@ private fun FontPresetsContent(
                         style = MaterialTheme.typography.titleMedium.copy(fontFamily = fontFamily),
                     )
                     Text(
-                        "The quick brown fox jumps over the lazy dog",
+                        if (isVi) "Một con cáo nâu nhanh nhẹn nhảy qua một con chó lười" else "The quick brown fox jumps over the lazy dog",
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = fontFamily),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1214,7 +1242,7 @@ private fun ColorPickerContent(
     )
     Column {
         Text(
-            "Text Color",
+            stringResource(R.string.editor_color),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1241,7 +1269,7 @@ private fun ColorPickerContent(
                         if (currentColor == c) {
                             Icon(
                                 Icons.Default.Check,
-                                contentDescription = "Selected",
+                                contentDescription = stringResource(R.string.stamp_selected),
                                 tint = if (c == 0xFFFFFFFFL.toLong()) Color.Black else Color.White,
                                 modifier = Modifier.size(22.dp),
                             )
@@ -1278,7 +1306,7 @@ private fun ExpandableFab(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(end = 20.dp, bottom = 24.dp),
+            .padding(end = 16.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.Bottom,
     ) {
@@ -1300,7 +1328,7 @@ private fun ExpandableFab(
         ) {
             FabSubButton(
                 icon = Icons.Filled.TextFields,
-                label = "Add Text",
+                label = stringResource(R.string.editor_text_style),
                 onClick = onAddText,
             )
         }
@@ -1325,7 +1353,7 @@ private fun ExpandableFab(
         ) {
             FabSubButton(
                 icon = Icons.Filled.Dashboard,
-                label = "Add Assets",
+                label = stringResource(R.string.editor_assets),
                 onClick = onAddAssets,
             )
         }
@@ -1350,7 +1378,7 @@ private fun ExpandableFab(
         ) {
             FabSubButton(
                 icon = Icons.Filled.PhotoLibrary,
-                label = "Add Stamp",
+                label = stringResource(R.string.tab_stamp),
                 onClick = onAddStamp,
             )
         }
@@ -1367,7 +1395,7 @@ private fun ExpandableFab(
         ) {
             Icon(
                 Icons.Filled.Add,
-                contentDescription = if (expanded) "Close" else "Add",
+                contentDescription = if (expanded) stringResource(R.string.close) else null,
                 modifier = Modifier.graphicsLayer { rotationZ = rotation },
             )
         }
@@ -1442,12 +1470,15 @@ private fun BackgroundsGrid(
             .verticalScroll(scrollState)
             .scrollFirstThenDragSheet(scrollState, sheetState)
     ) {
+        val context = androidx.compose.ui.platform.LocalContext.current
         BackgroundOptions.chunked(2).forEach { row ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 row.forEach { (key, label) ->
+                    val resourceId = context.resources.getIdentifier(key, "string", context.packageName)
+                    val localizedLabel = if (resourceId != 0) context.getString(resourceId) else label
                     Column(
                         modifier = Modifier.weight(1f)
                             .clickable { onSelect(key) },
@@ -1469,7 +1500,7 @@ private fun BackgroundsGrid(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(vertical = 6.dp),
                         ) {
-                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                            Text(localizedLabel, style = MaterialTheme.typography.bodyMedium)
                             Spacer(Modifier.weight(1f))
                             RadioButton(selected = current == key, onClick = { onSelect(key) })
                         }
@@ -1494,17 +1525,17 @@ private fun AssetCategoriesList(
             .verticalScroll(scrollState)
             .scrollFirstThenDragSheet(scrollState, sheetState)
     ) {
-        AssetCategorySection(title = "Tape Pack", assets = TapeAssets, onPick = onPick)
+        AssetCategorySection(title = stringResource(R.string.editor_tape_pack), assets = TapeAssets, onPick = onPick)
         Spacer(Modifier.height(12.dp))
-        AssetCategorySection(title = "Sticker Pack", assets = StickerAssets, onPick = onPick)
+        AssetCategorySection(title = stringResource(R.string.editor_sticker_pack), assets = StickerAssets, onPick = onPick)
         Spacer(Modifier.height(12.dp))
         AssetCategorySection(
-            title = "Polaroid Frame",
+            title = stringResource(R.string.editor_polaroid_frame),
             assets = listOf(AssetOption("polaroid", "Classic Polaroid", CanvasElementType.POLAROID)),
             onPick = onPick,
         )
         Spacer(Modifier.height(12.dp))
-        AssetCategorySection(title = "Paper Cuts", assets = PaperCutAssets, onPick = onPick)
+        AssetCategorySection(title = stringResource(R.string.editor_paper_cuts), assets = PaperCutAssets, onPick = onPick)
         Spacer(Modifier.height(24.dp))
     }
 }
@@ -1526,7 +1557,7 @@ private fun AssetCategorySection(
         )
         Spacer(Modifier.weight(1f))
         Text(
-            "${assets.size} styles",
+            stringResource(R.string.editor_assets_styles, assets.size),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1568,8 +1599,15 @@ private fun AssetCategorySection(
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
+                            val assetLabel = when (a.type) {
+                                CanvasElementType.TAPE -> stringResource(R.string.editor_tape_label, a.key.removePrefix("tape_").toInt())
+                                CanvasElementType.STICKER -> stringResource(R.string.editor_sticker_label, a.key.removePrefix("sticker_").toInt())
+                                CanvasElementType.POLAROID -> stringResource(R.string.editor_classic_polaroid)
+                                CanvasElementType.PAPER_CUT -> stringResource(R.string.editor_papercut_label, a.key.removePrefix("papercut_").toInt())
+                                else -> a.label
+                            }
                             Text(
-                                a.label,
+                                assetLabel,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -1594,13 +1632,13 @@ private fun StampPickerDialog(
     onDismiss: () -> Unit,
 ) {
     ScraplyDialog(
-        title = "Pick a stamp",
+        title = stringResource(R.string.editor_pick_stamp),
         onDismissRequest = onDismiss,
         maxWidth = 460.dp,
         content = {
             if (stamps.isEmpty()) {
                 Text(
-                    "You have no stamps yet.",
+                    stringResource(R.string.editor_no_stamps),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1649,7 +1687,7 @@ private fun StampPickerDialog(
             }
         },
         actions = {
-            ScraplyDialogConfirmButton(label = "Close", onClick = onDismiss)
+            ScraplyDialogConfirmButton(label = stringResource(R.string.editor_close), onClick = onDismiss)
         },
     )
 }

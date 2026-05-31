@@ -1,5 +1,7 @@
 package com.example.scraply.ui.navigation
 
+import com.example.scraply.R
+
 object Routes {
     const val STAMP = "stamp"
     const val COLLECTIONS = "collections"
@@ -7,7 +9,12 @@ object Routes {
     const val CALENDAR = "calendar"
     const val FEED = "feed"
     const val PROFILE = "profile"
+    const val SETTINGS = "settings"
     const val NOTIFICATIONS = "notifications"
+    const val RECENT_LIKES = "recent_likes"
+    const val RECENT_COMMENTS = "recent_comments"
+    const val EDIT_PROFILE = "edit_profile"
+    const val ABOUT = "about"
     const val COMMENTS = "feed/comments/{postId}"
     const val FEED_POST = "feed/post/{postId}?showComments={showComments}"
     const val PROFILE_POSTS = "profile/posts/{postId}"
@@ -33,10 +40,10 @@ object Routes {
     fun profilePosts(postId: String) = "profile/posts/${android.net.Uri.encode(postId)}"
 }
 
-enum class BottomTab(val route: String, val label: String) {
-    STAMP(Routes.STAMP, "Stamp"),
-    COLLECTIONS(Routes.COLLECTIONS, "Collection"),
-    EDITOR(Routes.EDITOR_LIST, "Editor"),
-    FEED(Routes.FEED, "Feed"),
-    PROFILE(Routes.PROFILE, "Profile"),
+enum class BottomTab(val route: String, val label: String, val labelResId: Int) {
+    STAMP(Routes.STAMP, "Stamp", R.string.tab_stamp),
+    COLLECTIONS(Routes.COLLECTIONS, "Collection", R.string.tab_collection),
+    EDITOR(Routes.EDITOR_LIST, "Editor", R.string.tab_editor),
+    FEED(Routes.FEED, "Feed", R.string.tab_feed),
+    PROFILE(Routes.PROFILE, "Profile", R.string.tab_profile),
 }

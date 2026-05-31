@@ -1,6 +1,7 @@
 package com.example.scraply.data.remote
 
 import android.content.Context
+import android.util.Log
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.Query
@@ -8,10 +9,17 @@ import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.ConcurrentHashMap
 
 data class FeedPost(
     val id: String,
@@ -29,6 +37,7 @@ data class FeedPost(
     val likedByMe: Boolean = false,
     val savedByMe: Boolean = false,
     val previewComments: List<FeedComment> = emptyList(),
+    val likedAt: Long = 0L,
 )
 
 data class FeedComment(
@@ -46,6 +55,21 @@ data class FeedLikeUser(
     val displayName: String?,
     val avatarUrl: String?,
     val likedAt: Long,
+)
+
+data class CommentSubItem(
+    val commentId: String,
+    val text: String,
+    val createdAt: Long,
+)
+
+data class UserCommentGroup(
+    val postId: String,
+    val postTitle: String?,
+    val postImageUrl: String?,
+    val postAuthorName: String?,
+    val postAuthorAvatarUrl: String?,
+    val comments: List<CommentSubItem>,
 )
 
 /**
@@ -67,12 +91,25 @@ class SocialRepository(
     private val postsRef = firestore.collection("published_scrapbooks")
     private val followsRef = firestore.collection("follows")
     private val usersRef = firestore.collection("users")
+    private val locallyPublishedPosts = ConcurrentHashMap<String, FeedPost>()
+    private val locallyDeletedPostIds = ConcurrentHashMap.newKeySet<String>()
+    private val _publishedPosts = MutableSharedFlow<FeedPost>(extraBufferCapacity = 16)
+    val publishedPosts = _publishedPosts.asSharedFlow()
+    private val _deletedPostIds = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val deletedPostIds = _deletedPostIds.asSharedFlow()
+    private val userSummaryLock = Mutex()
+    private val userSummaryCache = mutableMapOf<String, UserSummary>()
+
+    private data class UserSummary(
+        val username: String?,
+        val displayName: String?,
+        val avatarUrl: String?,
+    )
 
     private suspend fun actorProfile(uid: String): Triple<String?, String?, String?> {
-        val snap = runCatching { usersRef.document(uid).get().await() }.getOrNull() ?: return Triple(null, null, null)
-        val name = snap.getString("displayName") ?: snap.getString("username")
-        val avatar = snap.getString("avatarUrl")
-        return Triple(uid, name, avatar)
+        val summary = userSummaries(listOf(uid))[uid] ?: return Triple(uid, null, null)
+        val name = summary.displayName ?: summary.username
+        return Triple(uid, name, summary.avatarUrl)
     }
 
     private suspend fun postSummary(postId: String): Pair<String?, String?> {
@@ -97,12 +134,15 @@ class SocialRepository(
         val docRef = postsRef.document()
         val postId = docRef.id
         val imageUrl = storage.uploadPostImage(uid, postId, localImagePath)
+        val (_, actorName, actorAvatar) = actorProfile(uid)
         val data = mutableMapOf<String, Any?>(
             "id" to postId,
             "projectId" to projectId,
             "imageUrl" to imageUrl,
             "canvasJson" to canvasJson,
             "userId" to uid,
+            "username" to actorName,
+            "avatarUrl" to actorAvatar,
             "likeCount" to 0L,
             "commentCount" to 0L,
             "createdAt" to FieldValue.serverTimestamp(),
@@ -110,6 +150,22 @@ class SocialRepository(
         if (!title.isNullOrBlank()) data["title"] = title.take(1000)
         if (!description.isNullOrBlank()) data["description"] = description.take(1000)
         docRef.set(data).await()
+        val post = FeedPost(
+            id = postId,
+            projectId = projectId,
+            imageUrl = imageUrl,
+            canvasJson = canvasJson,
+            userId = uid,
+            username = actorName,
+            avatarUrl = actorAvatar,
+            likeCount = 0L,
+            commentCount = 0L,
+            createdAt = System.currentTimeMillis(),
+            title = title?.takeIf { it.isNotBlank() }?.take(1000),
+            description = description?.takeIf { it.isNotBlank() }?.take(1000),
+        )
+        locallyPublishedPosts[postId] = post
+        _publishedPosts.tryEmit(post)
         return postId
     }
 
@@ -119,20 +175,24 @@ class SocialRepository(
     fun observeMyPosts(uid: String): Flow<List<FeedPost>> = callbackFlow {
         val q = postsRef
             .whereEqualTo("userId", uid)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .limit(60)
         val reg = q.addSnapshotListener { snap, err ->
-            if (err != null || snap == null) return@addSnapshotListener
-            trySend(
-                snap.documents.mapNotNull { d ->
+            if (err != null) {
+                Log.e("SocialRepository", "observeMyPosts failed for uid=$uid", err)
+                return@addSnapshotListener
+            }
+            if (snap == null) return@addSnapshotListener
+            val posts = snap.documents
+                    .filterNot { d -> (d.getString("id") ?: d.id) in locallyDeletedPostIds }
+                    .mapNotNull { d ->
                     FeedPost(
                         id = d.getString("id") ?: d.id,
                         projectId = d.getString("projectId") ?: return@mapNotNull null,
                         imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
                         canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
                         userId = d.getString("userId") ?: return@mapNotNull null,
-                        username = null,
-                        avatarUrl = null,
+                        username = d.getString("username"),
+                        avatarUrl = d.getString("avatarUrl"),
                         likeCount = d.getLong("likeCount") ?: 0,
                         commentCount = d.getLong("commentCount") ?: 0,
                         createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
@@ -140,15 +200,28 @@ class SocialRepository(
                         description = d.getString("description"),
                     )
                 }
-            )
+            posts.forEach { locallyPublishedPosts.remove(it.id) }
+            val localPosts = locallyPublishedPosts.values
+                .filter { it.userId == uid && it.id !in locallyDeletedPostIds }
+                .filterNot { local -> posts.any { it.id == local.id } }
+            trySend((posts + localPosts).sortedByDescending { it.createdAt })
         }
         awaitClose { reg.remove() }
     }
 
     suspend fun deletePost(postId: String, uid: String) {
-        val doc = postsRef.document(postId).get().await()
+        val postRef = postsRef.document(postId)
+        val doc = postRef.get().await()
         require(doc.getString("userId") == uid) { "You can only delete your own posts." }
-        postsRef.document(postId).delete().await()
+        locallyDeletedPostIds += postId
+        locallyPublishedPosts.remove(postId)
+        try {
+            postRef.delete().await()
+            _deletedPostIds.tryEmit(postId)
+        } catch (t: Throwable) {
+            locallyDeletedPostIds -= postId
+            throw t
+        }
     }
 
     suspend fun updatePostDetails(postId: String, uid: String, title: String, description: String) {
@@ -173,15 +246,17 @@ class SocialRepository(
         val q = postsRef.orderBy("createdAt", Query.Direction.DESCENDING).limit(50)
         val registration = q.addSnapshotListener { snap, err ->
             if (err != null || snap == null) return@addSnapshotListener
-            val posts = snap.documents.mapNotNull { d ->
+            val posts = snap.documents
+                .filterNot { d -> (d.getString("id") ?: d.id) in locallyDeletedPostIds }
+                .mapNotNull { d ->
                 FeedPost(
                     id = d.getString("id") ?: d.id,
                     projectId = d.getString("projectId") ?: return@mapNotNull null,
                     imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
                     canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
                     userId = d.getString("userId") ?: return@mapNotNull null,
-                    username = null,
-                    avatarUrl = null,
+                    username = d.getString("username"),
+                    avatarUrl = d.getString("avatarUrl"),
                     likeCount = d.getLong("likeCount") ?: 0,
                     commentCount = d.getLong("commentCount") ?: 0,
                     createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
@@ -189,50 +264,91 @@ class SocialRepository(
                     description = d.getString("description"),
                 )
             }
-            trySend(posts)
+            val localPosts = locallyPublishedPosts.values
+                .filter { it.id !in locallyDeletedPostIds }
+                .filterNot { local -> posts.any { it.id == local.id } }
+            trySend((posts + localPosts).sortedByDescending { it.createdAt })
         }
         awaitClose { registration.remove() }
     }
 
+    private suspend fun userSummaries(uids: Collection<String>): Map<String, UserSummary> = coroutineScope {
+        val cleanUids = uids.filter { it.isNotBlank() }.distinct()
+        if (cleanUids.isEmpty()) return@coroutineScope emptyMap()
+
+        val cached = userSummaryLock.withLock {
+            cleanUids.mapNotNull { uid -> userSummaryCache[uid]?.let { uid to it } }.toMap()
+        }
+        val missing = cleanUids.filterNot { it in cached }
+        if (missing.isNotEmpty()) {
+            val loaded = missing.map { uid ->
+                async {
+                    val snap = runCatching { usersRef.document(uid).get().await() }.getOrNull()
+                    uid to snap?.let {
+                        UserSummary(
+                            username = it.getString("username"),
+                            displayName = it.getString("displayName"),
+                            avatarUrl = it.getString("avatarUrl"),
+                        )
+                    }
+                }
+            }.awaitAll()
+                .mapNotNull { (uid, summary) -> summary?.let { uid to it } }
+
+            if (loaded.isNotEmpty()) {
+                userSummaryLock.withLock {
+                    loaded.forEach { (uid, summary) -> userSummaryCache[uid] = summary }
+                }
+            }
+        }
+
+        userSummaryLock.withLock {
+            cleanUids.mapNotNull { uid -> userSummaryCache[uid]?.let { uid to it } }.toMap()
+        }
+    }
+
     suspend fun hydratePostAuthors(posts: List<FeedPost>): List<FeedPost> {
-        val uids = posts.map { it.userId }.distinct()
-        val userDocs = uids.mapNotNull { uid ->
-            runCatching { usersRef.document(uid).get().await() }.getOrNull()
-        }.associateBy { it.id }
+        val uids = posts
+            .filter { it.username.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
+            .map { it.userId }
+            .distinct()
+        val summaries = userSummaries(uids)
         return posts.map { post ->
-            val u = userDocs[post.userId]
+            val summary = summaries[post.userId]
             post.copy(
-                username = u?.getString("username") ?: u?.getString("displayName"),
-                avatarUrl = u?.getString("avatarUrl"),
+                username = summary?.username ?: summary?.displayName ?: post.username,
+                avatarUrl = summary?.avatarUrl ?: post.avatarUrl,
             )
         }
     }
 
     suspend fun hydrateCommentAuthors(comments: List<FeedComment>): List<FeedComment> {
-        val uids = comments.mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }.distinct()
-        val userDocs = uids.mapNotNull { uid ->
-            runCatching { usersRef.document(uid).get().await() }.getOrNull()
-        }.associateBy { it.id }
+        val uids = comments
+            .filter { it.username.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
+            .mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }
+            .distinct()
+        val summaries = userSummaries(uids)
         return comments.map { comment ->
-            val u = userDocs[comment.userId]
+            val summary = summaries[comment.userId]
             comment.copy(
-                username = u?.getString("username") ?: u?.getString("displayName"),
-                avatarUrl = u?.getString("avatarUrl"),
+                username = summary?.username ?: summary?.displayName ?: comment.username,
+                avatarUrl = summary?.avatarUrl ?: comment.avatarUrl,
             )
         }
     }
 
     suspend fun hydrateLikeUsers(likes: List<FeedLikeUser>): List<FeedLikeUser> {
-        val uids = likes.mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }.distinct()
-        val userDocs = uids.mapNotNull { uid ->
-            runCatching { usersRef.document(uid).get().await() }.getOrNull()
-        }.associateBy { it.id }
+        val uids = likes
+            .filter { it.username.isNullOrBlank() || it.displayName.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
+            .mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }
+            .distinct()
+        val summaries = userSummaries(uids)
         return likes.map { like ->
-            val u = userDocs[like.userId]
+            val summary = summaries[like.userId]
             like.copy(
-                username = u?.getString("username"),
-                displayName = u?.getString("displayName"),
-                avatarUrl = u?.getString("avatarUrl"),
+                username = summary?.username ?: like.username,
+                displayName = summary?.displayName ?: like.displayName,
+                avatarUrl = summary?.avatarUrl ?: like.avatarUrl,
             )
         }
     }
@@ -250,8 +366,8 @@ class SocialRepository(
                     FeedComment(
                         id = d.id,
                         userId = d.getString("userId") ?: "",
-                        username = null,
-                        avatarUrl = null,
+                        username = d.getString("username"),
+                        avatarUrl = d.getString("avatarUrl"),
                         text = d.getString("text") ?: "",
                         createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
                     )
@@ -275,17 +391,51 @@ class SocialRepository(
             async {
                 val likeRef = postsRef.document(post.id).collection("likes").document(currentUid)
                 val saveRef = postsRef.document(post.id).collection("saves").document(currentUid)
-                val likedByMe = runCatching { likeRef.get().await().exists() }.getOrDefault(false)
+                val likeSnap = runCatching { likeRef.get().await() }.getOrNull()
+                val likedByMe = likeSnap?.exists() ?: false
+                val likedAt = likeSnap?.getTimestamp("createdAt")?.toDate()?.time ?: 0L
                 val savedByMe = runCatching { saveRef.get().await().exists() }.getOrDefault(false)
-                post.copy(likedByMe = likedByMe, savedByMe = savedByMe)
+                post.copy(likedByMe = likedByMe, savedByMe = savedByMe, likedAt = likedAt)
             }
         }.awaitAll()
     }
 
+    suspend fun hydrateFeedSnapshot(currentUid: String, posts: List<FeedPost>, rank: Boolean): List<FeedPost> = coroutineScope {
+        val activePosts = posts.filterNot { it.id in locallyDeletedPostIds }
+        if (activePosts.isEmpty()) return@coroutineScope activePosts
+
+        val authors = async { runCatching { hydratePostAuthors(activePosts) }.getOrDefault(activePosts) }
+        val engagement = async { runCatching { hydratePostEngagement(currentUid, activePosts) }.getOrDefault(activePosts) }
+        val previews = async { runCatching { hydratePostCommentPreviews(activePosts) }.getOrDefault(activePosts) }
+        val followed: Deferred<Set<String>>? =
+            if (rank) async { runCatching { followedUserIds(currentUid) }.getOrDefault(emptySet()) } else null
+
+        val engagementById = engagement.await().associateBy { it.id }
+        val previewsById = previews.await().associateBy { it.id }
+        val merged = authors.await().filterNot { it.id in locallyDeletedPostIds }.map { post ->
+            val engagementPost = engagementById[post.id]
+            val previewPost = previewsById[post.id]
+            post.copy(
+                likedByMe = engagementPost?.likedByMe ?: post.likedByMe,
+                savedByMe = engagementPost?.savedByMe ?: post.savedByMe,
+                previewComments = previewPost?.previewComments ?: post.previewComments,
+                likedAt = engagementPost?.likedAt ?: post.likedAt,
+            )
+        }
+
+        val followedIds = followed?.await() ?: return@coroutineScope merged
+        merged.sortedWith(
+            compareByDescending<FeedPost> { it.userId in followedIds }.thenByDescending { it.createdAt }
+        )
+    }
+
+    private suspend fun followedUserIds(currentUid: String): Set<String> =
+        followsRef.whereEqualTo("followerId", currentUid).get().await()
+            .documents.mapNotNull { it.getString("followeeId") }.toSet()
+
     /** Followed-users-first ordering (REQUIREMENTS AC-8.3). */
     suspend fun rankByFollows(currentUid: String, posts: List<FeedPost>): List<FeedPost> {
-        val followed = followsRef.whereEqualTo("followerId", currentUid).get().await()
-            .documents.mapNotNull { it.getString("followeeId") }.toSet()
+        val followed = followedUserIds(currentUid)
         return posts.sortedWith(
             compareByDescending<FeedPost> { it.userId in followed }.thenByDescending { it.createdAt }
         )
@@ -360,9 +510,12 @@ class SocialRepository(
 
     suspend fun addComment(postId: String, uid: String, text: String) {
         val col = postsRef.document(postId).collection("comments")
+        val (_, actorName, actorAvatar) = actorProfile(uid)
         val added = col.add(
             mapOf(
                 "userId" to uid,
+                "username" to actorName,
+                "avatarUrl" to actorAvatar,
                 "text" to text,
                 "createdAt" to FieldValue.serverTimestamp(),
             )
@@ -397,8 +550,8 @@ class SocialRepository(
                         FeedComment(
                             id = d.id,
                             userId = d.getString("userId") ?: "",
-                            username = null,
-                            avatarUrl = null,
+                            username = d.getString("username"),
+                            avatarUrl = d.getString("avatarUrl"),
                             text = d.getString("text") ?: "",
                             createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
                         )
@@ -441,5 +594,84 @@ class SocialRepository(
             }
             true
         }
+    }
+
+    fun observeUserComments(uid: String, limit: Long): Flow<List<UserCommentGroup>> = callbackFlow {
+        val query = firestore.collectionGroup("comments")
+            .whereEqualTo("userId", uid)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit)
+
+        val reg = query.addSnapshotListener { snap, err ->
+            if (err != null || snap == null) {
+                trySend(emptyList())
+                return@addSnapshotListener
+            }
+            launch {
+                val rawComments = snap.documents.mapNotNull { d ->
+                    val commentId = d.id
+                    val text = d.getString("text") ?: ""
+                    val createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L
+                    
+                    val postDocRef = d.reference.parent.parent ?: return@mapNotNull null
+                    val postId = postDocRef.id
+                    
+                    Triple(commentId, text, createdAt) to postId
+                }
+                
+                val postIds = rawComments.map { it.second }.distinct()
+                val postsMap = postIds.map { postId ->
+                    async {
+                        val postDocRef = postsRef.document(postId)
+                        val postSnap = runCatching { postDocRef.get().await() }.getOrNull()
+                        if (postSnap != null) {
+                            val postTitle = postSnap.getString("title") ?: postSnap.getString("description")
+                            val postImageUrl = postSnap.getString("imageUrl")
+                            val postAuthorId = postSnap.getString("userId") ?: ""
+                            
+                            val authorSummary = if (postAuthorId.isNotBlank()) userSummaries(listOf(postAuthorId))[postAuthorId] else null
+                            postId to UserCommentGroup(
+                                postId = postId,
+                                postTitle = postTitle,
+                                postImageUrl = postImageUrl,
+                                postAuthorName = authorSummary?.displayName ?: authorSummary?.username ?: postSnap.getString("username"),
+                                postAuthorAvatarUrl = authorSummary?.avatarUrl ?: postSnap.getString("avatarUrl"),
+                                comments = emptyList()
+                            )
+                        } else {
+                            null
+                        }
+                    }
+                }.awaitAll().filterNotNull().toMap()
+                
+                val groupedComments = rawComments.groupBy { it.second }
+                    .mapNotNull { (postId, pairs) ->
+                        val postGroup = postsMap[postId] ?: return@mapNotNull null
+                        
+                        val subItems = pairs.map { (commentData, _) ->
+                            CommentSubItem(
+                                commentId = commentData.first,
+                                text = commentData.second,
+                                createdAt = commentData.third
+                            )
+                        }.sortedBy { it.createdAt }
+                        
+                        postGroup.copy(comments = subItems)
+                    }
+                
+                val sortedGroups = groupedComments.sortedByDescending { group ->
+                    group.comments.maxOfOrNull { it.createdAt } ?: 0L
+                }
+                
+                trySend(sortedGroups)
+            }
+        }
+        awaitClose { reg.remove() }
+    }
+
+    suspend fun deleteComment(postId: String, commentId: String) {
+        val doc = postsRef.document(postId).collection("comments").document(commentId)
+        doc.delete().await()
+        postsRef.document(postId).update("commentCount", FieldValue.increment(-1)).await()
     }
 }
