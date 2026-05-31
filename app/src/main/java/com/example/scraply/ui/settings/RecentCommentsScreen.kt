@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -43,10 +44,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +79,20 @@ fun RecentCommentsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val authState by viewModel.authState.collectAsState()
     val currentUser = authState.user
+
+    // Observe lifecycle events to refresh comments when screen is resumed (e.g. returning from post detail)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val listState = rememberLazyListState()
 
@@ -357,7 +376,24 @@ private fun RecentCommentGroupCard(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            // Đường chỉ đứng kết nối từ avatar tác giả xuống danh sách bình luận bên dưới
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .fillMaxHeight()
+                            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+                    )
+                }
+                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.weight(1f))
+            }
 
             // ── Danh sách bình luận thụt lề dưới dạng Thread Line ─────────────────────
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -401,19 +437,21 @@ private fun RecentCommentSubRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .height(androidx.compose.foundation.layout.IntrinsicSize.Min),
         verticalAlignment = Alignment.Top
     ) {
         // Cột bên trái: Thiết kế đường chỉ Thread Line chạy dọc động
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.width(36.dp)
+            modifier = Modifier
+                .width(36.dp)
+                .fillMaxHeight()
         ) {
             // Đường chỉ trên nối từ avatar tác giả bài viết hoặc comment trước
             Box(
                 modifier = Modifier
                     .width(2.dp)
-                    .height(if (isFirst) 10.dp else 12.dp)
+                    .weight(1f)
                     .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
             )
 
@@ -445,13 +483,14 @@ private fun RecentCommentSubRow(
 
             // Đường chỉ dưới nối tiếp sang comment tiếp theo trong nhóm
             if (!isLast) {
-                Spacer(Modifier.height(2.dp))
                 Box(
                     modifier = Modifier
                         .width(2.dp)
-                        .height(24.dp)
+                        .weight(1f)
                         .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
                 )
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
 
@@ -461,7 +500,7 @@ private fun RecentCommentSubRow(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .padding(top = 4.dp),
+                .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

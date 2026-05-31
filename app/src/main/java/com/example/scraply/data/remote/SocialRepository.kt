@@ -149,28 +149,26 @@ class SocialRepository(
     fun observeMyPosts(uid: String): Flow<List<FeedPost>> = callbackFlow {
         val q = postsRef
             .whereEqualTo("userId", uid)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
             .limit(60)
         val reg = q.addSnapshotListener { snap, err ->
             if (err != null || snap == null) return@addSnapshotListener
-            trySend(
-                snap.documents.mapNotNull { d ->
-                    FeedPost(
-                        id = d.getString("id") ?: d.id,
-                        projectId = d.getString("projectId") ?: return@mapNotNull null,
-                        imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
-                        canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
-                        userId = d.getString("userId") ?: return@mapNotNull null,
-                        username = d.getString("username"),
-                        avatarUrl = d.getString("avatarUrl"),
-                        likeCount = d.getLong("likeCount") ?: 0,
-                        commentCount = d.getLong("commentCount") ?: 0,
-                        createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
-                        title = d.getString("title"),
-                        description = d.getString("description"),
-                    )
-                }
-            )
+            val posts = snap.documents.mapNotNull { d ->
+                FeedPost(
+                    id = d.getString("id") ?: d.id,
+                    projectId = d.getString("projectId") ?: return@mapNotNull null,
+                    imageUrl = d.getString("imageUrl") ?: return@mapNotNull null,
+                    canvasJson = d.getString("canvasJson") ?: "{\"elements\":[]}",
+                    userId = d.getString("userId") ?: return@mapNotNull null,
+                    username = d.getString("username"),
+                    avatarUrl = d.getString("avatarUrl"),
+                    likeCount = d.getLong("likeCount") ?: 0,
+                    commentCount = d.getLong("commentCount") ?: 0,
+                    createdAt = d.getTimestamp("createdAt")?.toDate()?.time ?: 0L,
+                    title = d.getString("title"),
+                    description = d.getString("description"),
+                )
+            }.sortedByDescending { it.createdAt }
+            trySend(posts)
         }
         awaitClose { reg.remove() }
     }
@@ -259,47 +257,44 @@ class SocialRepository(
         }
     }
 
+    suspend fun invalidateUserSummary(uid: String) {
+        userSummaryLock.withLock {
+            userSummaryCache.remove(uid)
+        }
+    }
+
     suspend fun hydratePostAuthors(posts: List<FeedPost>): List<FeedPost> {
-        val uids = posts
-            .filter { it.username.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
-            .map { it.userId }
-            .distinct()
+        val uids = posts.map { it.userId }.distinct()
         val summaries = userSummaries(uids)
         return posts.map { post ->
             val summary = summaries[post.userId]
             post.copy(
-                username = summary?.username ?: summary?.displayName ?: post.username,
+                username = summary?.displayName ?: summary?.username ?: post.username,
                 avatarUrl = summary?.avatarUrl ?: post.avatarUrl,
             )
         }
     }
 
     suspend fun hydrateCommentAuthors(comments: List<FeedComment>): List<FeedComment> {
-        val uids = comments
-            .filter { it.username.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
-            .mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }
-            .distinct()
+        val uids = comments.map { it.userId }.filter { it.isNotBlank() }.distinct()
         val summaries = userSummaries(uids)
         return comments.map { comment ->
             val summary = summaries[comment.userId]
             comment.copy(
-                username = summary?.username ?: summary?.displayName ?: comment.username,
+                username = summary?.displayName ?: summary?.username ?: comment.username,
                 avatarUrl = summary?.avatarUrl ?: comment.avatarUrl,
             )
         }
     }
 
     suspend fun hydrateLikeUsers(likes: List<FeedLikeUser>): List<FeedLikeUser> {
-        val uids = likes
-            .filter { it.username.isNullOrBlank() || it.displayName.isNullOrBlank() || it.avatarUrl.isNullOrBlank() }
-            .mapNotNull { it.userId.takeIf { id -> id.isNotBlank() } }
-            .distinct()
+        val uids = likes.map { it.userId }.filter { it.isNotBlank() }.distinct()
         val summaries = userSummaries(uids)
         return likes.map { like ->
             val summary = summaries[like.userId]
             like.copy(
-                username = summary?.username ?: like.username,
-                displayName = summary?.displayName ?: like.displayName,
+                username = summary?.displayName ?: summary?.username ?: like.username,
+                displayName = summary?.displayName ?: summary?.username ?: like.displayName,
                 avatarUrl = summary?.avatarUrl ?: like.avatarUrl,
             )
         }

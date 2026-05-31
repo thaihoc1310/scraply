@@ -136,6 +136,7 @@ class ProfileViewModel(
                 avatarUrl = avatarUrl,
             )
                 .onSuccess {
+                    socialRepository?.invalidateUserSummary(uid)
                     _profile.value = _profile.value.copy(
                         saving = false,
                         editing = false,

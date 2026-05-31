@@ -300,8 +300,8 @@ private fun Stat(count: Long, label: String) {
 fun ProfilePostsFeedScreen(
     initialPostId: String,
     onBack: () -> Unit,
+    vm: ProfileViewModel = scraplyViewModel(),
 ) {
-    val vm: ProfileViewModel = scraplyViewModel()
     val profileState by vm.profile.collectAsState()
     val authState by vm.authState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

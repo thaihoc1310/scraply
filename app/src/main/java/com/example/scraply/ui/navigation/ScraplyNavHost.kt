@@ -255,9 +255,15 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 arguments = listOf(navArgument("postId") { type = NavType.StringType }),
             ) { backStackEntry ->
                 val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                val profileEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.PROFILE)
+                }
+                val profileVm: com.example.scraply.ui.social.ProfileViewModel =
+                    scraplyViewModel(viewModelStoreOwner = profileEntry)
                 ProfilePostsFeedScreen(
                     initialPostId = postId,
                     onBack = { navController.popBackStack() },
+                    vm = profileVm,
                 )
             }
 
