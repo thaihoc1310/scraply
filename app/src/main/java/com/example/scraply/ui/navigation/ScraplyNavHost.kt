@@ -1,6 +1,7 @@
 package com.example.scraply.ui.navigation
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -553,8 +554,12 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 20.dp, vertical = 28.dp),
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.inverseSurface,
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                ),
                 shadowElevation = 8.dp,
             ) {
                 Row(
@@ -570,7 +575,7 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     Text(
                         text = stringResource(R.string.editor_published_toast),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }

@@ -566,67 +566,77 @@ fun ScrapbookEditorScreen(
             onDismissRequest = { showPublishPreview = null },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surface,
+            dragHandle = null,
+            sheetGesturesEnabled = false,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .fillMaxHeight(0.92f)
                     .imePadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    stringResource(R.string.editor_publish_feed),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = null,
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth(0.6f)
-                        .aspectRatio(canvasSize.width.toFloat() / canvasSize.height.toFloat())
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
-                        .padding(1.dp)
-                )
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        stringResource(R.string.editor_publish_feed),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
 
-                Spacer(Modifier.height(24.dp))
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth(0.6f)
+                            .aspectRatio(canvasSize.width.toFloat() / canvasSize.height.toFloat())
+                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
+                            .padding(1.dp)
+                    )
 
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { if (it.length <= 1000) title = it },
-                    label = { Text(stringResource(R.string.stamp_title)) },
-                    leadingIcon = { Icon(Icons.Filled.Edit, null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    supportingText = { Text("${title.length}/1000") },
-                    singleLine = true,
-                )
+                    Spacer(Modifier.height(24.dp))
 
-                Spacer(Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { if (it.length <= 1000) title = it },
+                        label = { Text(stringResource(R.string.stamp_title)) },
+                        leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = { Text("${title.length}/1000") },
+                        singleLine = true,
+                    )
 
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { if (it.length <= 1000) description = it },
-                    label = { Text(stringResource(R.string.stamp_caption)) },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Filled.ChatBubble,
-                            contentDescription = null,
-                            modifier = Modifier.padding(bottom = 48.dp)
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    supportingText = { Text("${description.length}/1000") },
-                    minLines = 3,
-                    maxLines = 5,
-                )
+                    Spacer(Modifier.height(16.dp))
 
-                Spacer(Modifier.height(24.dp))
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { if (it.length <= 1000) description = it },
+                        label = { Text(stringResource(R.string.stamp_caption)) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.ChatBubble,
+                                contentDescription = null,
+                                modifier = Modifier.padding(bottom = 48.dp)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        supportingText = { Text("${description.length}/1000") },
+                        minLines = 3,
+                        maxLines = 5,
+                    )
+                }
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 32.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = { showPublishPreview = null }) {
