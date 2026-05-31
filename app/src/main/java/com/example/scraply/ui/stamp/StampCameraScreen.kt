@@ -1,11 +1,16 @@
 package com.example.scraply.ui.stamp
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Size
+import android.view.View
+import android.view.ViewGroup
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
@@ -46,6 +51,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
@@ -99,6 +105,7 @@ import java.io.File
 fun StampCameraScreen(
     vm: StampCaptureViewModel,
     onCaptured: (String) -> Unit,
+    onOpenUpload: () -> Unit,
 ) {
     val cameraPermission = rememberPermissionState(Manifest.permission.CAMERA)
 
@@ -117,6 +124,7 @@ fun StampCameraScreen(
             CameraContent(
                 vm = vm,
                 onCaptured = onCaptured,
+                onOpenUpload = onOpenUpload,
             )
         } else {
             PermissionRequest(
@@ -151,6 +159,7 @@ private fun PermissionRequest(onRequestPermission: () -> Unit) {
 private fun CameraContent(
     vm: StampCaptureViewModel,
     onCaptured: (String) -> Unit,
+    onOpenUpload: () -> Unit,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -216,10 +225,74 @@ private fun CameraContent(
     val captureSound = remember(context) {
         MediaPlayer.create(context, R.raw.stamp_sound)
     }
+    val activity = remember(context) { context.findActivity() }
+    val screenFlashOverlay = remember(context) {
+        View(context).apply {
+            setBackgroundColor(android.graphics.Color.WHITE)
+            visibility = View.GONE
+        }
+    }
+    val screenFlash = remember(activity, screenFlashOverlay) {
+        object : ImageCapture.ScreenFlash {
+            private var previousBrightness: Float? = null
+
+            override fun apply(
+                expirationTimeMillis: Long,
+                screenFlashListener: ImageCapture.ScreenFlashListener,
+            ) {
+                previousBrightness = activity?.window?.attributes?.screenBrightness
+                activity?.window?.let { window ->
+                    window.attributes = window.attributes.apply {
+                        screenBrightness = 1f
+                    }
+                }
+                screenFlashOverlay.visibility = View.VISIBLE
+                screenFlashOverlay.bringToFront()
+                screenFlashListener.onCompleted()
+            }
+
+            override fun clear() {
+                screenFlashOverlay.visibility = View.GONE
+                val brightness = previousBrightness
+                if (brightness != null) {
+                    activity?.window?.let { window ->
+                        window.attributes = window.attributes.apply {
+                            screenBrightness = brightness
+                        }
+                    }
+                }
+                previousBrightness = null
+            }
+        }
+    }
+
+    DisposableEffect(activity, screenFlashOverlay) {
+        val decorView = activity?.window?.decorView as? ViewGroup
+        decorView?.addView(
+            screenFlashOverlay,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        onDispose {
+            screenFlash.clear()
+            decorView?.removeView(screenFlashOverlay)
+        }
+    }
 
     DisposableEffect(captureSound) {
         onDispose {
             captureSound?.release()
+        }
+    }
+
+    DisposableEffect(imageCapture, screenFlash) {
+        imageCapture.setScreenFlash(screenFlash)
+        onDispose {
+            imageCapture.flashMode = ImageCapture.FLASH_MODE_OFF
+            screenFlash.clear()
+            imageCapture.setScreenFlash(null)
         }
     }
 
@@ -410,198 +483,168 @@ private fun CameraContent(
             }
         }
 
-        // Top bar
+        // Top corner controls
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(16.dp),
+                .padding(horizontal = 28.dp, vertical = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Zoom indicator
-            Box(
-                modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.45f), CircleShape)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    text = "${"%.1f".format(zoom)}x",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
+            CircleIconButton(
+                icon = if (hasFlash) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
+                contentDescription = "Toggle flash",
+                enabled = !isCapturing &&
+                    (hasFlashHardware || lensFacing == CameraSelector.LENS_FACING_FRONT),
+                onClick = {
+                    hasFlash = !hasFlash
+                    imageCapture.flashMode = when {
+                        !hasFlash -> ImageCapture.FLASH_MODE_OFF
+                        lensFacing == CameraSelector.LENS_FACING_FRONT ->
+                            ImageCapture.FLASH_MODE_SCREEN
+                        else -> ImageCapture.FLASH_MODE_ON
+                    }
+                },
+                background = Color.Black.copy(alpha = 0.55f),
+                tint = Color.White,
+            )
 
-            // Camera controls
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (hasFlashHardware) {
-                    CircleIconButton(
-                        icon = if (hasFlash) Icons.Filled.FlashOn else Icons.Filled.FlashOff,
-                        contentDescription = "Toggle flash",
-                        onClick = {
-                            if (isCapturing) return@CircleIconButton
-                            hasFlash = !hasFlash
-                            imageCapture.flashMode = if (hasFlash) {
-                                ImageCapture.FLASH_MODE_ON
-                            } else {
-                                ImageCapture.FLASH_MODE_OFF
-                            }
-                        },
-                        background = Color.White,
-                        tint = Color.Black,
-                    )
-                }
-
-                CircleIconButton(
-                    icon = Icons.Filled.Cameraswitch,
-                    contentDescription = "Flip camera",
-                    onClick = {
-                        if (isCapturing) return@CircleIconButton
-                        lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
-                            CameraSelector.LENS_FACING_FRONT
-                        } else {
-                            CameraSelector.LENS_FACING_BACK
-                        }
-                    },
-                    background = Color.White,
-                    tint = Color.Black,
-                )
-            }
+            CircleIconButton(
+                icon = Icons.Filled.Cameraswitch,
+                contentDescription = "Flip camera",
+                enabled = !isCapturing,
+                onClick = {
+                    hasFlash = false
+                    imageCapture.flashMode = ImageCapture.FLASH_MODE_OFF
+                    lensFacing = if (lensFacing == CameraSelector.LENS_FACING_BACK) {
+                        CameraSelector.LENS_FACING_FRONT
+                    } else {
+                        CameraSelector.LENS_FACING_BACK
+                    }
+                },
+                background = Color.Black.copy(alpha = 0.55f),
+                tint = Color.White,
+            )
         }
 
-        // Bottom controls
-        Column(
+        // Bottom corner controls and capture
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(horizontal = 28.dp, vertical = 28.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "${"%.1f".format(zoom)}x",
-                color = Color.White,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(R.string.stamp_pinch_to_zoom),
-                color = Color.White.copy(alpha = 0.8f),
-                style = MaterialTheme.typography.labelSmall,
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                CircleIconButton(
+                    icon = Icons.Filled.AddPhotoAlternate,
+                    contentDescription = stringResource(R.string.collections_upload_stamp),
+                    onClick = onOpenUpload,
+                    enabled = !isCapturing,
+                    background = Color.Black.copy(alpha = 0.55f),
+                    tint = Color.White,
+                )
+            }
 
             CaptureButton(
                 enabled = !isCapturing,
                 onClick = {
-                    if (isCapturing) return@CaptureButton
+                if (isCapturing) return@CaptureButton
 
-                    isCapturing = true
-                    isCutting = true
-                    showBlackHole = false
-                    showFallingCard = false
-                    frozenPreviewBitmap?.recycle()
-                    val previewSnapshot = previewView.bitmap
-                    frozenPreviewBitmap = previewSnapshot
-                    try {
-                        captureSound?.seekTo(0)
-                        captureSound?.start()
-                    } catch (_: IllegalStateException) {
-                    }
+                isCapturing = true
+                isCutting = true
+                showBlackHole = false
+                showFallingCard = false
+                frozenPreviewBitmap?.recycle()
+                val previewSnapshot = previewView.bitmap
+                frozenPreviewBitmap = previewSnapshot
+                try {
+                    captureSound?.seekTo(0)
+                    captureSound?.start()
+                } catch (_: IllegalStateException) {
+                }
 
-                    scope.launch {
-                        fallProgress.snapTo(0f)
-                        val animationJob = launch {
-                            val previewStamp = withContext(Dispatchers.Default) {
-                                previewSnapshot?.let { snapshot ->
-                                    StampBitmapProcessor.cut(
-                                        context = context,
-                                        source = snapshot,
-                                        previewSize = IntSize(snapshot.width, snapshot.height),
-                                        cutterScale = 1f,
-                                        includeStroke = true,
-                                    )
-                                }
-                            }
-                            val soundDurationMs = (captureSound?.duration ?: 520).coerceIn(320, 900)
-                            val pressDelayMs = (soundDurationMs * 0.12f).toLong()
-                            val fallDurationMs = (soundDurationMs - pressDelayMs).coerceAtLeast(220L).toInt()
-
-                            delay(pressDelayMs)
-                            isCutting = false
-
-                            if (previewStamp != null) {
-                                fallingBitmap = previewStamp
-                                showBlackHole = true
-                                showFallingCard = true
-
-                                fallProgress.snapTo(0f)
-                                fallProgress.animateTo(
-                                    targetValue = 1f,
-                                    animationSpec = tween(
-                                        durationMillis = fallDurationMs,
-                                        easing = FastOutSlowInEasing,
-                                    ),
+                scope.launch {
+                    fallProgress.snapTo(0f)
+                    val animationJob = launch {
+                        val previewStamp = withContext(Dispatchers.Default) {
+                            previewSnapshot?.let { snapshot ->
+                                StampBitmapProcessor.cut(
+                                    context = context,
+                                    source = snapshot,
+                                    previewSize = IntSize(snapshot.width, snapshot.height),
+                                    cutterScale = 1f,
+                                    includeStroke = true,
                                 )
                             }
                         }
+                        val soundDurationMs = (captureSound?.duration ?: 520).coerceIn(320, 900)
+                        val pressDelayMs = (soundDurationMs * 0.12f).toLong()
+                        val fallDurationMs = (soundDurationMs - pressDelayMs).coerceAtLeast(220L).toInt()
 
-                        imageCapture.takePicture(
-                            executor,
-                            object : ImageCapture.OnImageCapturedCallback() {
-                                override fun onCaptureSuccess(image: ImageProxy) {
-                                    scope.launch {
-                                        try {
-                                            val bitmap = withContext(Dispatchers.IO) {
-                                                try {
-                                                    val cropRect = Rect(image.cropRect)
-                                                    val raw = image.toBitmap()
-                                                    val viewportCropped = StampBitmapProcessor.cropToRect(
-                                                        source = raw,
-                                                        cropRect = cropRect,
-                                                    )
-                                                    val upright = StampBitmapProcessor.rotateToUpright(
-                                                        source = viewportCropped,
-                                                        degrees = image.imageInfo.rotationDegrees,
-                                                    )
-                                                    StampBitmapProcessor.cut(
-                                                        context = context,
-                                                        source = upright,
-                                                        previewSize = previewSize,
-                                                        cutterScale = 1f,
-                                                    )
-                                                } finally {
-                                                    image.close()
-                                                }
+                        delay(pressDelayMs)
+                        isCutting = false
+
+                        if (previewStamp != null) {
+                            fallingBitmap = previewStamp
+                            showBlackHole = true
+                            showFallingCard = true
+
+                            fallProgress.snapTo(0f)
+                            fallProgress.animateTo(
+                                targetValue = 1f,
+                                animationSpec = tween(
+                                    durationMillis = fallDurationMs,
+                                    easing = FastOutSlowInEasing,
+                                ),
+                            )
+                        }
+                    }
+
+                    imageCapture.takePicture(
+                        executor,
+                        object : ImageCapture.OnImageCapturedCallback() {
+                            override fun onCaptureSuccess(image: ImageProxy) {
+                                scope.launch {
+                                    try {
+                                        val bitmap = withContext(Dispatchers.IO) {
+                                            try {
+                                                val cropRect = Rect(image.cropRect)
+                                                val raw = image.toBitmap()
+                                                val viewportCropped = StampBitmapProcessor.cropToRect(
+                                                    source = raw,
+                                                    cropRect = cropRect,
+                                                )
+                                                val upright = StampBitmapProcessor.rotateToUpright(
+                                                    source = viewportCropped,
+                                                    degrees = image.imageInfo.rotationDegrees,
+                                                )
+                                                StampBitmapProcessor.cut(
+                                                    context = context,
+                                                    source = upright,
+                                                    previewSize = previewSize,
+                                                    cutterScale = 1f,
+                                                )
+                                            } finally {
+                                                image.close()
                                             }
-
-                                            val savedUri = withContext(Dispatchers.IO) {
-                                                val outFile = File(context.filesDir, "stamps/${System.currentTimeMillis()}.png")
-                                                outFile.parentFile?.mkdirs()
-                                                outFile.outputStream().use { out ->
-                                                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-                                                }
-                                                Uri.fromFile(outFile).toString()
-                                            }
-
-                                            animationJob.join()
-                                            onCaptured(savedUri)
-                                            frozenPreviewBitmap = null
-                                            isCapturing = false
-                                        } catch (_: Exception) {
-                                            animationJob.cancel()
-                                            isCutting = false
-                                            showBlackHole = false
-                                            showFallingCard = false
-                                            fallingBitmap = null
-                                            frozenPreviewBitmap = null
-                                            isCapturing = false
                                         }
-                                    }
-                                }
 
-                                override fun onError(exception: ImageCaptureException) {
-                                    scope.launch {
+                                        val savedUri = withContext(Dispatchers.IO) {
+                                            val outFile = File(context.filesDir, "stamps/${System.currentTimeMillis()}.png")
+                                            outFile.parentFile?.mkdirs()
+                                            outFile.outputStream().use { out ->
+                                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                            }
+                                            Uri.fromFile(outFile).toString()
+                                        }
+
+                                        animationJob.join()
+                                        onCaptured(savedUri)
+                                        frozenPreviewBitmap = null
+                                        isCapturing = false
+                                    } catch (_: Exception) {
                                         animationJob.cancel()
                                         isCutting = false
                                         showBlackHole = false
@@ -611,12 +654,42 @@ private fun CameraContent(
                                         isCapturing = false
                                     }
                                 }
-                            },
-                        )
-                    }
+                            }
+
+                            override fun onError(exception: ImageCaptureException) {
+                                scope.launch {
+                                    animationJob.cancel()
+                                    isCutting = false
+                                    showBlackHole = false
+                                    showFallingCard = false
+                                    fallingBitmap = null
+                                    frozenPreviewBitmap = null
+                                    isCapturing = false
+                                }
+                            }
+                        },
+                    )
+                }
                 },
             )
+
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
+                ZoomButton(
+                    zoom = zoom,
+                    enabled = !isCapturing,
+                    onClick = {
+                        val nextZoom = nextZoomLevel(
+                            currentZoom = zoom,
+                            minZoom = minZoom,
+                            maxZoom = maxZoom,
+                        )
+                        zoom = nextZoom
+                        camera?.cameraControl?.setZoomRatio(nextZoom)
+                    },
+                )
+            }
         }
+
     }
 }
 
@@ -641,4 +714,42 @@ private fun CaptureButton(
             .clickable(enabled = enabled, onClick = onClick)
             .background(Color.White, CircleShape),
     )
+}
+
+@Composable
+private fun ZoomButton(
+    zoom: Float,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Color.Black.copy(alpha = if (enabled) 0.55f else 0.28f))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "${"%.1f".format(zoom).removeSuffix(".0")}x",
+            color = Color.White.copy(alpha = if (enabled) 1f else 0.38f),
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+private fun nextZoomLevel(
+    currentZoom: Float,
+    minZoom: Float,
+    maxZoom: Float,
+): Float {
+    val levels = listOf(1f, 2f, 4f).filter { it in minZoom..maxZoom }
+    if (levels.isEmpty()) return minZoom
+    return levels.firstOrNull { it > currentZoom + 0.05f } ?: levels.first()
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

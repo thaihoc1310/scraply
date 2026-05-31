@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -56,7 +55,6 @@ private const val StampAspectRatio = 147f / 190f
 fun CollectionsScreen(
     vm: CollectionsViewModel,
     onOpenCollection: (String) -> Unit,
-    onOpenUpload: () -> Unit,
     onOpenCalendar: () -> Unit,
 ) {
     val cards by vm.cards.collectAsState()
@@ -75,18 +73,13 @@ fun CollectionsScreen(
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CircleIconButton(
-                icon = Icons.Filled.AddPhotoAlternate,
-                contentDescription = stringResource(R.string.collections_upload_stamp),
-                onClick = onOpenUpload,
-            )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.weight(1f))
             CircleIconButton(
                 icon = Icons.Filled.CalendarViewMonth,
                 contentDescription = stringResource(R.string.collections_calendar),
                 onClick = onOpenCalendar,
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp))
             CircleIconButton(
                 icon = Icons.Filled.Add,
                 contentDescription = stringResource(R.string.collections_new_collection),

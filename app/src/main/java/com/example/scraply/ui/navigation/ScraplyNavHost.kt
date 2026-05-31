@@ -84,6 +84,7 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 StampCameraScreen(
                     vm = vm,
                     onCaptured = { uri -> navController.navigate(Routes.stampCrop(uri)) },
+                    onOpenUpload = { navController.navigate(Routes.UPLOAD_STAMP) },
                 )
             }
 
@@ -121,7 +122,6 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 CollectionsScreen(
                     vm = vm,
                     onOpenCollection = { id -> navController.navigate(Routes.collectionDetail(id)) },
-                    onOpenUpload = { navController.navigate(Routes.UPLOAD_STAMP) },
                     onOpenCalendar = { navController.navigate(Routes.CALENDAR) },
                 )
             }
