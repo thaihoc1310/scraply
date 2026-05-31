@@ -55,6 +55,7 @@
     <string name="profile_posts">Posts</string>
     <string name="profile_followers">Followers</string>
     <string name="profile_following">Following</string>
+    <string name="profile_follow">Follow</string>
     <string name="profile_no_posts">You haven\'t published any scrapbooks yet.</string>
     <string name="profile_signed_out_headline">Your profile</string>
     <string name="profile_signed_out_subtext">Sign in to manage your profile and published scrapbooks.</string>

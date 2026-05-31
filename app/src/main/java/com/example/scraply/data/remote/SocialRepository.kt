@@ -433,6 +433,12 @@ class SocialRepository(
         followsRef.whereEqualTo("followerId", currentUid).get().await()
             .documents.mapNotNull { it.getString("followeeId") }.toSet()
 
+    /** Checks whether [followerId] is following [followeeId]. */
+    suspend fun isFollowing(followerId: String, followeeId: String): Boolean {
+        val id = "${followerId}_${followeeId}"
+        return followsRef.document(id).get().await().exists()
+    }
+
     /** Followed-users-first ordering (REQUIREMENTS AC-8.3). */
     suspend fun rankByFollows(currentUid: String, posts: List<FeedPost>): List<FeedPost> {
         val followed = followedUserIds(currentUid)
@@ -565,21 +571,27 @@ class SocialRepository(
         val id = "${followerId}_${followeeId}"
         val ref = followsRef.document(id)
         val existing = ref.get().await()
+        val followerDoc = usersRef.document(followerId)
+        val followeeDoc = usersRef.document(followeeId)
         return if (existing.exists()) {
-            ref.delete().await()
-            usersRef.document(followerId).update("followingCount", FieldValue.increment(-1)).await()
-            usersRef.document(followeeId).update("followerCount", FieldValue.increment(-1)).await()
+            // Unfollow — batch: delete follow doc + decrement both counts
+            firestore.batch().apply {
+                delete(ref)
+                set(followerDoc, mapOf("followingCount" to FieldValue.increment(-1)), com.google.firebase.firestore.SetOptions.merge())
+                set(followeeDoc, mapOf("followerCount" to FieldValue.increment(-1)), com.google.firebase.firestore.SetOptions.merge())
+            }.commit().await()
             false
         } else {
-            ref.set(
-                mapOf(
+            // Follow — batch: create follow doc + increment both counts
+            firestore.batch().apply {
+                set(ref, mapOf(
                     "followerId" to followerId,
                     "followeeId" to followeeId,
                     "createdAt" to FieldValue.serverTimestamp(),
-                )
-            ).await()
-            usersRef.document(followerId).update("followingCount", FieldValue.increment(1)).await()
-            usersRef.document(followeeId).update("followerCount", FieldValue.increment(1)).await()
+                ))
+                set(followerDoc, mapOf("followingCount" to FieldValue.increment(1)), com.google.firebase.firestore.SetOptions.merge())
+                set(followeeDoc, mapOf("followerCount" to FieldValue.increment(1)), com.google.firebase.firestore.SetOptions.merge())
+            }.commit().await()
             runCatching {
                 val (actorId, actorName, actorAvatar) = actorProfile(followerId)
                 notifications.create(

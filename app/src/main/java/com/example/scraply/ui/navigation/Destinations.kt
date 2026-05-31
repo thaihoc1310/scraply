@@ -27,6 +27,7 @@ object Routes {
     const val STAMP_DETAIL = "stamps/{stampId}"
     const val PROJECT_EDITOR = "editor/project/{projectId}"
     const val CALENDAR_DATE = "calendar/date/{epochDay}"
+    const val USER_PROFILE = "user_profile/{userId}"
 
     fun stampCrop(sourceUri: String) = "stamp/crop/${android.net.Uri.encode(sourceUri)}"
     fun stampDetails(stampUri: String) = "stamp/details/${android.net.Uri.encode(stampUri)}"
@@ -38,6 +39,7 @@ object Routes {
     fun feedPost(postId: String, showComments: Boolean = false) =
         "feed/post/${android.net.Uri.encode(postId)}?showComments=$showComments"
     fun profilePosts(postId: String) = "profile/posts/${android.net.Uri.encode(postId)}"
+    fun userProfile(userId: String) = "user_profile/${android.net.Uri.encode(userId)}"
 }
 
 enum class BottomTab(val route: String, val label: String, val labelResId: Int) {

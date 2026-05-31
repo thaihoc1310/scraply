@@ -255,65 +255,67 @@ private fun ProfileHeader(
     profile: ScraplyUser?,
     myPostsCount: Int?,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(84.dp).clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (profile?.avatarUrl != null) {
-                AsyncImage(
-                    model = profile.avatarUrl, contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
+            Box(
+                modifier = Modifier.size(84.dp).clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (profile?.avatarUrl != null) {
+                    AsyncImage(
+                        model = profile.avatarUrl, contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Text(
+                        (profile?.displayName ?: profile?.username ?: "?").take(1).uppercase(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    (profile?.displayName ?: profile?.username ?: "?").take(1).uppercase(),
-                    style = MaterialTheme.typography.headlineMedium,
+                    profile?.displayName ?: profile?.username ?: stringResource(R.string.profile_default_name),
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                 )
+                if (profile?.email != null) {
+                    Text(
+                        profile.email,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (!profile?.bio.isNullOrBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        profile.bio,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                    )
+                }
             }
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                profile?.displayName ?: profile?.username ?: stringResource(R.string.profile_default_name),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-            )
-            if (profile?.email != null) {
+            Spacer(Modifier.width(12.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    profile.email,
-                    style = MaterialTheme.typography.bodySmall,
+                    myPostsCount?.toString() ?: "--",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    stringResource(R.string.profile_posts),
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Spacer(Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Stat(count = myPostsCount?.toLong(), label = stringResource(R.string.profile_posts))
-                Stat(count = profile?.followerCount ?: 0, label = stringResource(R.string.profile_followers))
-                Stat(count = profile?.followingCount ?: 0, label = stringResource(R.string.profile_following))
-            }
         }
-    }
-
-    if (!profile?.bio.isNullOrBlank()) {
-        Text(
-            profile!!.bio,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
-    }
-}
-
-@Composable
-private fun Stat(count: Long?, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(count?.toString() ?: "--", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

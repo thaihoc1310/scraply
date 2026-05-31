@@ -28,6 +28,7 @@
     <string name="profile_posts">Bài đăng</string>
     <string name="profile_followers">Người theo dõi</string>
     <string name="profile_following">Đang theo dõi</string>
+    <string name="profile_follow">Theo dõi</string>
     <string name="profile_no_posts">Bạn chưa đăng tải scrapbook nào.</string>
     <string name="profile_signed_out_headline">Hồ sơ của bạn</string>
     <string name="profile_signed_out_subtext">Đăng nhập để quản lý hồ sơ và các scrapbook đã đăng tải.</string>

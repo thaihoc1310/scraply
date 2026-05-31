@@ -48,6 +48,7 @@ import com.example.scraply.ui.settings.RecentLikesScreen
 import com.example.scraply.ui.settings.RecentCommentsScreen
 import com.example.scraply.ui.settings.AboutScreen
 import com.example.scraply.ui.social.EditProfileScreen
+import com.example.scraply.ui.social.UserProfileScreen
 import com.example.scraply.ui.vm.scraplyViewModel
 
 @Composable
@@ -241,7 +242,12 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                                 launchSingleTop = true
                             }
                         }
-                    }
+                    },
+                    onOpenUserProfile = { userId ->
+                        navController.navigate(Routes.userProfile(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -263,6 +269,11 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                             navController.navigate(Routes.FEED) {
                                 launchSingleTop = true
                             }
+                        }
+                    },
+                    onOpenUserProfile = { userId ->
+                        navController.navigate(Routes.userProfile(userId)) {
+                            launchSingleTop = true
                         }
                     },
                 )
@@ -324,6 +335,51 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     onBack = { navController.popBackStack() },
                     onOpenPost = { id, showComments ->
                         navController.navigate(Routes.feedPost(id, showComments))
+                    },
+                    onOpenUserProfile = { userId ->
+                        navController.navigate(Routes.userProfile(userId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(
+                Routes.USER_PROFILE,
+                arguments = listOf(navArgument("userId") { type = NavType.StringType }),
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = tween(350)
+                    ) + fadeIn(animationSpec = tween(200))
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(350)
+                    ) + fadeOut(animationSpec = tween(200))
+                },
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId").orEmpty()
+                UserProfileScreen(
+                    userId = userId,
+                    onBack = { navController.popBackStack() },
+                    onOpenPost = { postId ->
+                        navController.navigate(Routes.feedPost(postId)) {
+                            launchSingleTop = true
+                        }
                     },
                 )
             }

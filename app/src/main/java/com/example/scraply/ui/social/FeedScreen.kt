@@ -99,6 +99,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun FeedScreen(
     onOpenPost: (String) -> Unit = {},
+    onOpenUserProfile: (String) -> Unit = {},
 ) {
     val vm: FeedViewModel = scraplyViewModel()
     val feedState by vm.feed.collectAsState()
@@ -228,6 +229,7 @@ fun FeedPostScreen(
     showComments: Boolean,
     onBack: () -> Unit,
     onDeleted: () -> Unit,
+    onOpenUserProfile: (String) -> Unit = {},
 ) {
     val vm: FeedViewModel = scraplyViewModel()
     val feedState by vm.feed.collectAsState()
@@ -294,6 +296,7 @@ fun FeedPostScreen(
                                     isCommentsVisible = false
                                     isLikesVisible = true
                                 },
+                                onOpenUserProfile = onOpenUserProfile,
                             )
                         }
                     }
@@ -665,6 +668,7 @@ fun FeedCard(
     onEditPost: ((FeedPost, String, String) -> Unit)? = null,
     onDeletePost: ((FeedPost) -> Unit)? = null,
     onOpenLikes: (() -> Unit)? = null,
+    onOpenUserProfile: ((String) -> Unit)? = null,
 ) {
     val canvasState = remember(post.canvasJson) {
         CanvasState.fromJson(post.canvasJson)
@@ -687,31 +691,45 @@ fun FeedCard(
             .padding(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .then(
+                        if (onOpenUserProfile != null) {
+                            Modifier.clickable { onOpenUserProfile(post.userId) }
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
             ) {
-                if (post.avatarUrl != null) {
-                    AsyncImage(
-                        model = post.avatarUrl, contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    Text(
-                        (post.username ?: "?").take(1).uppercase(),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                Box(
+                    modifier = Modifier.size(36.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (post.avatarUrl != null) {
+                        AsyncImage(
+                            model = post.avatarUrl, contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Text(
+                            (post.username ?: "?").take(1).uppercase(),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
+                Spacer(Modifier.width(10.dp))
+                val authorName = post.username?.takeIf { it.isNotBlank() } ?: stringResource(R.string.feed_anonymous_author)
+                Text(
+                    authorName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
-            Spacer(Modifier.width(10.dp))
-            val authorName = post.username?.takeIf { it.isNotBlank() } ?: stringResource(R.string.feed_anonymous_author)
-            Text(
-                authorName,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
             Spacer(Modifier.weight(1f))
             if (canManagePost) {
                 Box {
@@ -1068,6 +1086,7 @@ fun LikesPanel(
     showTopBar: Boolean,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    onOpenUserProfile: ((String) -> Unit)? = null,
 ) {
     val vm: LikesViewModel = scraplyViewModel()
     val state by vm.state.collectAsState()
@@ -1127,7 +1146,10 @@ fun LikesPanel(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         items(state.likes, key = { it.userId }) { like ->
-                            LikeUserRow(like = like)
+                            LikeUserRow(
+                                like = like,
+                                onOpenUserProfile = onOpenUserProfile,
+                            )
                         }
                     }
                 }
@@ -1137,7 +1159,10 @@ fun LikesPanel(
 }
 
 @Composable
-private fun LikeUserRow(like: FeedLikeUser) {
+private fun LikeUserRow(
+    like: FeedLikeUser,
+    onOpenUserProfile: ((String) -> Unit)? = null,
+) {
     val name = like.displayName?.takeIf { it.isNotBlank() }
         ?: like.username?.takeIf { it.isNotBlank() }
         ?: stringResource(R.string.feed_anonymous_author)
@@ -1146,6 +1171,13 @@ private fun LikeUserRow(like: FeedLikeUser) {
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surface)
+            .then(
+                if (onOpenUserProfile != null) {
+                    Modifier.clickable { onOpenUserProfile(like.userId) }
+                } else {
+                    Modifier
+                }
+            )
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

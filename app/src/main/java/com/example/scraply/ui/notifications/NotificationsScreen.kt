@@ -56,12 +56,18 @@ import com.example.scraply.R
 fun NotificationsScreen(
     onBack: () -> Unit,
     onOpenPost: (String, Boolean) -> Unit,
+    onOpenUserProfile: (String) -> Unit = {},
 ) {
     val vm: NotificationsViewModel = scraplyViewModel()
     val state by vm.state.collectAsState()
 
     fun handleClick(item: NotificationItem) {
         vm.markRead(item)
+        // FOLLOW notifications navigate to the actor's profile
+        if (item.type == NotificationType.FOLLOW && !item.actorId.isNullOrBlank()) {
+            onOpenUserProfile(item.actorId)
+            return
+        }
         val postId = item.postId
         if (postId.isNullOrBlank()) return
         val showComments = item.type == NotificationType.COMMENT
