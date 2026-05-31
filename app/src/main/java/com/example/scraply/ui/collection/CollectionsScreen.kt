@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,12 +19,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -149,88 +149,87 @@ private fun CollectionCardView(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
-    ScraplyCard(modifier = Modifier.fillMaxWidth()) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PillBadge(label = if (card.collection.isDefault) stringResource(R.string.collections_default) else stringResource(R.string.collections_custom))
-                Spacer(Modifier.weight(1f))
-                if (!card.collection.isDefault) {
-                    Box {
-                        CircleIconButton(
-                            icon = Icons.Filled.MoreHoriz,
-                            contentDescription = stringResource(R.string.close),
-                            onClick = { menuOpen = true },
-                        )
-                        ScraplyDropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false },
-                        ) {
-                            ScraplyDropdownMenuItem(
-                                label = stringResource(R.string.collections_rename),
-                                icon = Icons.Filled.Edit,
-                                onClick = { menuOpen = false; onRename() },
-                            )
-                            ScraplyDropdownMenuItem(
-                                label = stringResource(R.string.collections_delete),
-                                icon = Icons.Filled.Delete,
-                                destructive = true,
-                                onClick = { menuOpen = false; onDelete() },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(8.dp))
+    ScraplyCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
+        Box {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                if (card.collection.isDefault) {
+                    PillBadge(label = stringResource(R.string.collections_default))
+                    Spacer(Modifier.height(12.dp))
                 }
-                CircleIconButton(
-                    icon = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = stringResource(R.string.collections_open),
-                    onClick = onOpen,
+                Text(
+                    if (card.collection.isDefault) stringResource(R.string.all_stamps) else card.collection.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                if (card.collection.isDefault) stringResource(R.string.all_stamps) else card.collection.name,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                stringResource(if (card.stampCount == 1) R.string.collections_stamp_count_singular else R.string.collections_stamp_count_plural, card.stampCount),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(12.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(130.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .clickable(onClick = onOpen)
-                    .padding(12.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (card.thumbUris.isEmpty()) {
-                    Text(
-                        stringResource(R.string.collections_no_stamps),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(card.thumbUris) { uri ->
-                            Box(
-                                modifier = Modifier
-                                    .height(106.dp)
-                                    .aspectRatio(StampAspectRatio),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                StampImage(
-                                    imageUri = uri,
-                                    contentDescription = null,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
+                Text(
+                    stringResource(if (card.stampCount == 1) R.string.collections_stamp_count_singular else R.string.collections_stamp_count_plural, card.stampCount),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .clickable(onClick = onOpen)
+                        .padding(12.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (card.thumbUris.isEmpty()) {
+                        Text(
+                            stringResource(R.string.collections_no_stamps),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                    } else {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(card.thumbUris) { uri ->
+                                Box(
+                                    modifier = Modifier
+                                        .height(106.dp)
+                                        .aspectRatio(StampAspectRatio),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    StampImage(
+                                        imageUri = uri,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
                             }
                         }
+                    }
+                }
+            }
+            if (!card.collection.isDefault) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 4.dp, y = (-4).dp),
+                ) {
+                    CircleIconButton(
+                        icon = Icons.Filled.MoreVert,
+                        contentDescription = stringResource(R.string.close),
+                        onClick = { menuOpen = true },
+                    )
+                    ScraplyDropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                    ) {
+                        ScraplyDropdownMenuItem(
+                            label = stringResource(R.string.collections_rename),
+                            icon = Icons.Filled.Edit,
+                            onClick = { menuOpen = false; onRename() },
+                        )
+                        ScraplyDropdownMenuItem(
+                            label = stringResource(R.string.collections_delete),
+                            icon = Icons.Filled.Delete,
+                            destructive = true,
+                            onClick = { menuOpen = false; onDelete() },
+                        )
                     }
                 }
             }

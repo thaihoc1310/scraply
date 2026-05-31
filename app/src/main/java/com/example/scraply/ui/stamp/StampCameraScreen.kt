@@ -773,7 +773,21 @@ private fun nextZoomLevel(
     minZoom: Float,
     maxZoom: Float,
 ): Float {
-    val levels = listOf(1f, 2f, 4f).filter { it in minZoom..maxZoom }
+    val candidates = mutableListOf<Float>()
+    if (minZoom < 1f) {
+        candidates.add(minZoom)
+        if (minZoom < 0.5f) {
+            candidates.add(0.5f)
+        }
+    }
+    candidates.addAll(listOf(1f, 2f, 5f))
+    
+    val levels = candidates
+        .map { it.coerceIn(minZoom, maxZoom) }
+        .distinct()
+        .sorted()
+        .filter { it in minZoom..maxZoom }
+
     if (levels.isEmpty()) return minZoom
     return levels.firstOrNull { it > currentZoom + 0.05f } ?: levels.first()
 }

@@ -52,6 +52,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import com.example.scraply.R
 
 /**
@@ -295,10 +296,10 @@ private fun AuthPane(
 
 @Composable
 private fun GoogleMark(size: Dp) {
-    Box(
-        modifier = Modifier.size(size).background(Color.White, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
-    }
+    Icon(
+        painter = painterResource(R.drawable.ic_google),
+        contentDescription = null,
+        tint = Color.Unspecified,
+        modifier = Modifier.size(size)
+    )
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,7 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -166,56 +167,54 @@ private fun ProjectCardView(
     var menuOpen by remember { mutableStateOf(false) }
 
     ScraplyCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
+        Box {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = card.project.name,
+                    style = MaterialTheme.typography.titleLarge.copy(lineHeight = 29.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().padding(end = 48.dp),
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = projectMeta(card),
+                    style = MaterialTheme.typography.labelLarge.copy(lineHeight = 18.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.height(12.dp))
+                ProjectPreview(card = card, stamps = stamps)
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp),
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = card.project.name,
-                        style = MaterialTheme.typography.titleLarge.copy(lineHeight = 29.sp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth(),
+                CircleIconButton(
+                    icon = Icons.Filled.MoreVert,
+                    contentDescription = stringResource(R.string.close),
+                    onClick = { menuOpen = true },
+                )
+                ScraplyDropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                ) {
+                    ScraplyDropdownMenuItem(
+                        label = stringResource(R.string.collections_rename),
+                        icon = Icons.Filled.Edit,
+                        onClick = { menuOpen = false; onRename() },
                     )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = projectMeta(card),
-                        style = MaterialTheme.typography.labelLarge.copy(lineHeight = 18.sp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    ScraplyDropdownMenuItem(
+                        label = stringResource(R.string.collections_delete),
+                        icon = Icons.Filled.Delete,
+                        destructive = true,
+                        onClick = { menuOpen = false; onDelete() },
                     )
-                }
-                Spacer(Modifier.width(12.dp))
-                Box {
-                    CircleIconButton(
-                        icon = Icons.Filled.MoreHoriz,
-                        contentDescription = stringResource(R.string.close),
-                        onClick = { menuOpen = true },
-                    )
-                    ScraplyDropdownMenu(
-                        expanded = menuOpen,
-                        onDismissRequest = { menuOpen = false },
-                    ) {
-                        ScraplyDropdownMenuItem(
-                            label = stringResource(R.string.collections_rename),
-                            icon = Icons.Filled.Edit,
-                            onClick = { menuOpen = false; onRename() },
-                        )
-                        ScraplyDropdownMenuItem(
-                            label = stringResource(R.string.collections_delete),
-                            icon = Icons.Filled.Delete,
-                            destructive = true,
-                            onClick = { menuOpen = false; onDelete() },
-                        )
-                    }
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            ProjectPreview(card = card, stamps = stamps)
         }
     }
 }

@@ -55,7 +55,7 @@ import androidx.compose.material.icons.filled.Flip
 import androidx.compose.material.icons.filled.FlipToBack
 import androidx.compose.material.icons.filled.FlipToFront
 import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Public
@@ -276,7 +276,7 @@ fun ScrapbookEditorScreen(
                     Box {
                         var topMenuOpen by remember { mutableStateOf(false) }
                         CircleIconButton(
-                            icon = Icons.Filled.MoreHoriz,
+                            icon = Icons.Filled.MoreVert,
                             contentDescription = stringResource(R.string.close),
                             onClick = { topMenuOpen = true }
                         )

@@ -38,7 +38,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -458,7 +457,7 @@ private fun PinterestFeedCard(
                     .size(24.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.MoreHoriz,
+                    imageVector = Icons.Filled.MoreVert,
                     contentDescription = stringResource(R.string.close),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(18.dp)

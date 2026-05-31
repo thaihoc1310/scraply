@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -53,7 +54,7 @@ fun CircleIconButton(
         modifier = modifier
             .alpha(if (enabled) 1f else 0.38f)
             .size(44.dp)
-            .shadow(4.dp, CircleShape)
+            .clip(CircleShape)
             .background(background, CircleShape)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,

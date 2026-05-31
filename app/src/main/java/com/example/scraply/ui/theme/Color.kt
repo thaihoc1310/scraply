@@ -13,3 +13,5 @@ val CardStroke = Color(0x1A1F1B18)
 
 val DarkSurface = Color(0xFF1A1816)
 val DarkOnSurface = Color(0xFFEDE6DC)
+
+val WarmRed = Color(0xFFB83A3A)
