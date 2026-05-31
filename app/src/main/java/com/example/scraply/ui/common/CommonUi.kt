@@ -24,6 +24,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -285,4 +286,35 @@ fun ScraplyDialogConfirmButton(
     ) {
         Text(label)
     }
+}
+
+@Composable
+fun ScraplyOutlinedButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(16.dp),
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
+    content: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        shape = shape,
+        contentPadding = contentPadding,
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (enabled) {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+            } else {
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
+            },
+        ),
+        content = content,
+    )
 }

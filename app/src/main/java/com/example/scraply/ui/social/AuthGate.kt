@@ -31,7 +31,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.scraply.ui.common.ScraplyOutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -266,7 +266,7 @@ private fun AuthPane(
 
         Spacer(Modifier.height(20.dp))
 
-        OutlinedButton(
+        ScraplyOutlinedButton(
             onClick = onGoogle,
             enabled = !state.loading,
             shape = RoundedCornerShape(16.dp),

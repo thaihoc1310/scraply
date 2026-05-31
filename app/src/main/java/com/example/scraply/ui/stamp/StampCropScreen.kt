@@ -26,7 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -48,6 +48,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.scraply.ui.common.CircleIconButton
+import com.example.scraply.ui.common.ScraplyOutlinedButton
 import com.example.scraply.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -124,7 +125,7 @@ fun StampCropScreen(
                     .padding(top = 12.dp, bottom = 32.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OutlinedButton(
+                ScraplyOutlinedButton(
                     onClick = onBack,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.weight(1f),
@@ -270,10 +271,9 @@ private fun OptionButton(
     onClick: () -> Unit,
     modifier: Modifier,
 ) {
-    val isDark = isSystemInDarkTheme()
-    val selectedContainer = if (isDark) Color(0xFF242424) else Color(0xFFD6D6D6)
-    val unselectedContainer = if (isDark) Color(0xFF343434) else Color(0xFFF1F1F1)
-    val selectedBorder = if (isDark) Color(0xFF5A5A5A) else Color(0xFFB8B8B8)
+    val selectedContainer = MaterialTheme.colorScheme.surfaceVariant
+    val unselectedContainer = MaterialTheme.colorScheme.surface
+    val selectedBorder = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
     Box(
         modifier = modifier
             .height(42.dp)
@@ -281,7 +281,7 @@ private fun OptionButton(
             .background(if (selected) selectedContainer else unselectedContainer)
             .border(
                 width = 1.dp,
-                color = if (selected) selectedBorder else Color.Transparent,
+                color = if (selected) selectedBorder else MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(14.dp),
             )
             .clickable(onClick = onClick)

@@ -26,7 +26,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import com.example.scraply.ui.common.ScraplyOutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -93,7 +93,7 @@ fun UploadStampScreen(
                 .padding(top = 24.dp, start = 20.dp, end = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            OutlinedButton(
+            ScraplyOutlinedButton(
                 onClick = onClose,
                 shape = RoundedCornerShape(18.dp),
             ) { Text(stringResource(R.string.close)) }
@@ -188,7 +188,7 @@ fun UploadStampScreen(
             )
             Spacer(Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(
+                ScraplyOutlinedButton(
                     onClick = {
                         picker.launch(
                             PickVisualMediaRequest(

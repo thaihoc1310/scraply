@@ -22,7 +22,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -41,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.example.scraply.ui.common.CircleIconButton
+import com.example.scraply.ui.common.ScraplyOutlinedButton
 import com.example.scraply.ui.common.StampImage
 import com.example.scraply.ui.vm.scraplyViewModel
 import kotlinx.coroutines.launch
@@ -97,7 +97,7 @@ fun StampDetailsScreen(
                     .padding(top = 12.dp, bottom = 32.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                OutlinedButton(
+                ScraplyOutlinedButton(
                     onClick = onRetake,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.weight(1f),

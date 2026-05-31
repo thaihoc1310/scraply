@@ -70,7 +70,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
+
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SmallFloatingActionButton
@@ -138,6 +138,7 @@ import com.example.scraply.ui.common.ScraplyDialog
 import com.example.scraply.ui.common.ScraplyDialogConfirmButton
 import com.example.scraply.ui.common.ScraplyDropdownMenu
 import com.example.scraply.ui.common.ScraplyDropdownMenuItem
+import com.example.scraply.ui.common.ScraplyOutlinedButton
 import com.example.scraply.ui.common.StampImage
 import com.example.scraply.util.ImageUtils
 import kotlinx.coroutines.Dispatchers
@@ -441,7 +442,7 @@ fun ScrapbookEditorScreen(
                 horizontalArrangement = if (selectedId != null) Arrangement.SpaceBetween else Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                OutlinedButton(
+                ScraplyOutlinedButton(
                     onClick = {
                         vm.undo()
                         endInlineTextEdit()
@@ -456,14 +457,14 @@ fun ScrapbookEditorScreen(
                 selectedId?.let { id ->
                     val sel = canvas.elements.firstOrNull { it.id == id }
                     if (sel != null) {
-                        OutlinedButton(
+                        ScraplyOutlinedButton(
                             onClick = { vm.bringToFront(id) },
                             shape = RoundedCornerShape(14.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp),
                         ) {
                             Icon(Icons.Filled.FlipToFront, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
-                        OutlinedButton(
+                        ScraplyOutlinedButton(
                             onClick = { vm.sendToBack(id) },
                             shape = RoundedCornerShape(14.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp),
@@ -471,7 +472,7 @@ fun ScrapbookEditorScreen(
                             Icon(Icons.Filled.FlipToBack, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                         if (sel.type == CanvasElementType.TEXT) {
-                            OutlinedButton(
+                            ScraplyOutlinedButton(
                                 onClick = {
                                     textStyleElementId = id
                                     showTextStyle = true
@@ -484,7 +485,7 @@ fun ScrapbookEditorScreen(
                                 Text(stringResource(R.string.editor_background_tab_style))
                             }
                         } else {
-                            OutlinedButton(
+                            ScraplyOutlinedButton(
                                 onClick = {
                                     vm.updateElement(id, saveUndo = true) { it.copy(isFlipped = !it.isFlipped) }
                                 },
@@ -496,7 +497,7 @@ fun ScrapbookEditorScreen(
                                 Text(stringResource(R.string.editor_flip))
                             }
                         }
-                        OutlinedButton(
+                        ScraplyOutlinedButton(
                             onClick = { vm.deleteElement(id) },
                             shape = RoundedCornerShape(14.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp),
@@ -988,7 +989,7 @@ private fun BackgroundsSheet(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(
+                ScraplyOutlinedButton(
                     onClick = {
                         scope.launch {
                             sheetState.hide()
@@ -1076,7 +1077,7 @@ private fun AssetsOnlySheet(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(
+                ScraplyOutlinedButton(
                     onClick = {
                         scope.launch {
                             sheetState.hide()
@@ -1139,7 +1140,7 @@ private fun TextStyleSheet(
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Spacer(Modifier.weight(1f))
-                OutlinedButton(
+                ScraplyOutlinedButton(
                     onClick = onDismiss,
                     shape = RoundedCornerShape(18.dp),
                 ) { Text(stringResource(R.string.settings_done)) }
