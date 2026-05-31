@@ -228,6 +228,7 @@ fun FeedPostScreen(
     postId: String,
     showComments: Boolean,
     onBack: () -> Unit,
+    onDeleted: () -> Unit,
 ) {
     val vm: FeedViewModel = scraplyViewModel()
     val feedState by vm.feed.collectAsState()
@@ -288,7 +289,7 @@ fun FeedPostScreen(
                                 },
                                 onDeletePost = {
                                     vm.deletePost(it)
-                                    onBack()
+                                    onDeleted()
                                 },
                                 onOpenLikes = {
                                     isCommentsVisible = false

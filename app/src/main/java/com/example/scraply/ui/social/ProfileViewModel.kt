@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 data class ProfileUiState(
     val profile: ScraplyUser? = null,
     val myPosts: List<FeedPost> = emptyList(),
+    val isPostsLoading: Boolean = false,
     val saving: Boolean = false,
     val editing: Boolean = false,
     val message: String? = null,
@@ -39,6 +40,31 @@ class ProfileViewModel(
     private var postsJob: Job? = null
     private var profileJob: Job? = null
     private val pendingLikeIds = mutableSetOf<String>()
+    private val pendingPublishedIds = mutableSetOf<String>()
+
+    init {
+        socialRepository?.publishedPosts
+            ?.onEach { post ->
+                if (post.userId == authState.value.user?.uid) {
+                    pendingPublishedIds += post.id
+                    _profile.value = _profile.value.copy(
+                        myPosts = (_profile.value.myPosts + post)
+                            .distinctBy { it.id }
+                            .sortedByDescending { it.createdAt },
+                        isPostsLoading = false,
+                    )
+                }
+            }
+            ?.launchIn(viewModelScope)
+        socialRepository?.deletedPostIds
+            ?.onEach { postId ->
+                pendingPublishedIds -= postId
+                _profile.value = _profile.value.copy(
+                    myPosts = _profile.value.myPosts.filterNot { it.id == postId },
+                )
+            }
+            ?.launchIn(viewModelScope)
+    }
 
     override fun onAuthUserChanged(user: ScraplyUser?) {
         if (user != null) {
@@ -65,12 +91,17 @@ class ProfileViewModel(
 
     private fun startMyPosts(uid: String) {
         postsJob?.cancel()
-        val social = socialRepository ?: return
+        _profile.value = _profile.value.copy(myPosts = emptyList(), isPostsLoading = true)
+        val social = socialRepository ?: run {
+            _profile.value = _profile.value.copy(isPostsLoading = false)
+            return
+        }
         postsJob = social.observeMyPosts(uid)
             .onEach { rawPosts ->
                 val currentPosts = _profile.value.myPosts
-                val isInitialLoad = currentPosts.isEmpty()
-                val mergedPosts = rawPosts.map { post ->
+                val rawPostIds = rawPosts.mapTo(mutableSetOf()) { it.id }
+                pendingPublishedIds.removeAll(rawPostIds)
+                val hydratedRawPosts = rawPosts.map { post ->
                     val existing = currentPosts.firstOrNull { it.id == post.id }
                     var updated = post.copy(
                         username = existing?.username ?: post.username,
@@ -88,12 +119,27 @@ class ProfileViewModel(
                     }
                     updated
                 }
-                if (!isInitialLoad) {
-                    _profile.value = _profile.value.copy(myPosts = mergedPosts)
+                val optimisticPosts = currentPosts.filter {
+                    it.id in pendingPublishedIds && it.id !in rawPostIds
                 }
+                val mergedPosts = (hydratedRawPosts + optimisticPosts)
+                    .distinctBy { it.id }
+                    .sortedByDescending { it.createdAt }
+                _profile.value = _profile.value.copy(
+                    myPosts = mergedPosts,
+                    isPostsLoading = false,
+                )
 
                 val withPreviews = runCatching { social.hydrateFeedSnapshot(uid, mergedPosts, rank = false) }.getOrDefault(mergedPosts)
-                _profile.value = _profile.value.copy(myPosts = withPreviews)
+                val postsAddedWhileHydrating = _profile.value.myPosts
+                    .filter { it.id in pendingPublishedIds }
+                    .filterNot { current -> withPreviews.any { it.id == current.id } }
+                _profile.value = _profile.value.copy(
+                    myPosts = (withPreviews + postsAddedWhileHydrating)
+                        .distinctBy { it.id }
+                        .sortedByDescending { it.createdAt },
+                    isPostsLoading = false,
+                )
             }
             .launchIn(viewModelScope)
     }
@@ -101,7 +147,8 @@ class ProfileViewModel(
     private fun stopMyPosts() {
         postsJob?.cancel(); postsJob = null
         pendingLikeIds.clear()
-        _profile.value = _profile.value.copy(myPosts = emptyList())
+        pendingPublishedIds.clear()
+        _profile.value = _profile.value.copy(myPosts = emptyList(), isPostsLoading = false)
     }
 
     fun beginEdit() {

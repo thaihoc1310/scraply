@@ -350,7 +350,7 @@ fun ScrapbookEditorScreen(
                     .clipToBounds()
             ) {
                 val ratio = canvas.aspectRatio
-                val canvasBaseHeight = 600.dp
+                val canvasBaseHeight = EditorGeometry.CanvasBaseHeightDp.dp
                 val localWidth = canvasBaseHeight * ratio
                 val localHeight = canvasBaseHeight
 
@@ -760,19 +760,20 @@ private fun CanvasElementOnBoard(
     if (canvasSize == IntSize.Zero) return
     val w = canvasSize.width.toFloat()
     val h = canvasSize.height.toFloat()
+    val fittedElement = EditorGeometry.fitStampInsideCanvas(element, w / h)
 
     // rememberUpdatedState giữ reference luôn trỏ tới giá trị mới nhất,
     // tránh stale closure trong pointerInput (key = element.id không đổi).
-    val latestElement by rememberUpdatedState(element)
+    val latestElement by rememberUpdatedState(fittedElement)
 
     Box(
         modifier = Modifier
             .graphicsLayer {
-                translationX = element.x * w - size.width / 2f
-                translationY = element.y * h - size.height / 2f
-                scaleX = if (element.isFlipped) -element.scale else element.scale
-                scaleY = element.scale
-                rotationZ = element.rotation
+                translationX = fittedElement.x * w - size.width / 2f
+                translationY = fittedElement.y * h - size.height / 2f
+                scaleX = if (fittedElement.isFlipped) -fittedElement.scale else fittedElement.scale
+                scaleY = fittedElement.scale
+                rotationZ = fittedElement.rotation
                 transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0.5f)
             }
             .then(
@@ -815,19 +816,30 @@ private fun CanvasElementOnBoard(
                                 val dx = (adjustedPanX * cosA - pan.y * sinA) * el.scale
                                 val dy = (adjustedPanX * sinA + pan.y * cosA) * el.scale
 
-                                val hwN = (size.width * el.scale / 2f) / w
-                                val hhN = (size.height * el.scale / 2f) / h
-
-                                val minX = kotlin.math.min(hwN, 1f - hwN)
-                                val maxX = kotlin.math.max(hwN, 1f - hwN)
-                                val minY = kotlin.math.min(hhN, 1f - hhN)
-                                val maxY = kotlin.math.max(hhN, 1f - hhN)
-
-                                val nx = (el.x + dx / w).coerceIn(minX, maxX)
-                                val ny = (el.y + dy / h).coerceIn(minY, maxY)
                                 val ns = (el.scale * zoom).coerceIn(0.2f, 4f)
                                 val nr = el.rotation + rot
-                                onUpdate(el.copy(x = nx, y = ny, scale = ns, rotation = nr))
+                                val updated = el.copy(
+                                    x = el.x + dx / w,
+                                    y = el.y + dy / h,
+                                    scale = ns,
+                                    rotation = nr,
+                                )
+                                if (el.type == CanvasElementType.STAMP) {
+                                    onUpdate(EditorGeometry.fitStampInsideCanvas(updated, w / h))
+                                } else {
+                                    val hwN = (size.width * el.scale / 2f) / w
+                                    val hhN = (size.height * el.scale / 2f) / h
+                                    val minX = kotlin.math.min(hwN, 1f - hwN)
+                                    val maxX = kotlin.math.max(hwN, 1f - hwN)
+                                    val minY = kotlin.math.min(hhN, 1f - hhN)
+                                    val maxY = kotlin.math.max(hhN, 1f - hhN)
+                                    onUpdate(
+                                        updated.copy(
+                                            x = updated.x.coerceIn(minX, maxX),
+                                            y = updated.y.coerceIn(minY, maxY),
+                                        ),
+                                    )
+                                }
                             }
                         }
                 } else Modifier
@@ -841,7 +853,7 @@ private fun CanvasElementOnBoard(
             ),
     ) {
         CanvasElementView(
-            element = element, 
+            element = fittedElement,
             stamps = stamps,
             isEditing = isEditing,
             onStartTextEdit = onBeginTextEdit,

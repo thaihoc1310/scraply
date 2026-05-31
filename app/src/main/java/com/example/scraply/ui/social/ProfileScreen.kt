@@ -27,8 +27,6 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -130,6 +128,7 @@ fun ProfileScreen(
             ProfileBody(
                 profile = profileState.profile,
                 myPosts = profileState.myPosts,
+                isPostsLoading = profileState.isPostsLoading,
                 message = profileState.message,
                 onDismissMessage = { vm.dismissMessage() },
                 onOpenPost = { post -> onOpenPost(post.id) },
@@ -142,6 +141,7 @@ fun ProfileScreen(
 private fun ProfileBody(
     profile: ScraplyUser?,
     myPosts: List<FeedPost>,
+    isPostsLoading: Boolean,
     message: String?,
     onDismissMessage: () -> Unit,
     onOpenPost: (FeedPost) -> Unit,
@@ -160,14 +160,21 @@ private fun ProfileBody(
             modifier = Modifier.fillMaxSize()
         ) {
             item(span = StaggeredGridItemSpan.FullLine) {
-                ProfileHeader(profile, myPostsCount = myPosts.size)
+                ProfileHeader(
+                    profile = profile,
+                    myPostsCount = myPosts.size.takeUnless { isPostsLoading && myPosts.isEmpty() },
+                )
             }
 
             item(span = StaggeredGridItemSpan.FullLine) {
                 Spacer(Modifier.height(12.dp))
             }
 
-            if (myPosts.isEmpty()) {
+            if (isPostsLoading && myPosts.isEmpty()) {
+                items(ProfilePostPlaceholderRatios) { ratio ->
+                    ProfilePostPlaceholder(ratio)
+                }
+            } else if (myPosts.isEmpty()) {
                 item(span = StaggeredGridItemSpan.FullLine) {
                     Box(
                         modifier = Modifier.fillMaxWidth().padding(32.dp),
@@ -230,10 +237,23 @@ private fun MyPostThumb(post: FeedPost, onClick: () -> Unit) {
     )
 }
 
+private val ProfilePostPlaceholderRatios = listOf(1.18f, 0.82f, 0.96f, 1.3f, 0.86f, 1.08f)
+
+@Composable
+private fun ProfilePostPlaceholder(ratio: Float) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(ratio)
+            .clip(RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+    )
+}
+
 @Composable
 private fun ProfileHeader(
     profile: ScraplyUser?,
-    myPostsCount: Int,
+    myPostsCount: Int?,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
@@ -273,7 +293,7 @@ private fun ProfileHeader(
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Stat(count = myPostsCount.toLong(), label = stringResource(R.string.profile_posts))
+                Stat(count = myPostsCount?.toLong(), label = stringResource(R.string.profile_posts))
                 Stat(count = profile?.followerCount ?: 0, label = stringResource(R.string.profile_followers))
                 Stat(count = profile?.followingCount ?: 0, label = stringResource(R.string.profile_following))
             }
@@ -290,9 +310,9 @@ private fun ProfileHeader(
 }
 
 @Composable
-private fun Stat(count: Long, label: String) {
+private fun Stat(count: Long?, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(count.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(count?.toString() ?: "--", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -302,10 +322,11 @@ private fun Stat(count: Long, label: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfilePostsFeedScreen(
+    vm: ProfileViewModel,
     initialPostId: String,
     onBack: () -> Unit,
+    onDeleted: () -> Unit,
 ) {
-    val vm: ProfileViewModel = scraplyViewModel()
     val profileState by vm.profile.collectAsState()
     val authState by vm.authState.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -331,9 +352,16 @@ fun ProfilePostsFeedScreen(
             signedOutHeadline = stringResource(R.string.profile_signed_out_headline),
             signedOutSubtext = stringResource(R.string.profile_signin_view_posts),
         ) {
-            val posts = profileState.myPosts
+            val post = profileState.myPosts.firstOrNull { it.id == initialPostId }
 
-            if (posts.isEmpty()) {
+            if (profileState.isPostsLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    ProfilePostPlaceholder(0.82f)
+                }
+            } else if (post == null) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         stringResource(R.string.profile_no_posts),
@@ -342,26 +370,33 @@ fun ProfilePostsFeedScreen(
                     )
                 }
             } else {
-                val initialPostIndex = posts.indexOfFirst { it.id == initialPostId }
-                    .takeIf { it >= 0 } ?: 0
-                ProfilePostsFeedList(
-                    posts = posts,
-                    initialPostIndex = initialPostIndex,
-                    currentUserId = authState.user?.uid,
-                    onLike = { vm.toggleLike(it) },
-                    onOpenComments = {
-                        activeLikesPost = null
-                        activeCommentsPost = it
-                    },
-                    onOpenLikes = {
-                        activeCommentsPost = null
-                        activeLikesPost = it
-                    },
-                    onEditPost = { post, title, description ->
-                        vm.updatePostDetails(post, title, description)
-                    },
-                    onDeletePost = { vm.deletePost(it) },
-                )
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    item(post.id) {
+                        FeedCard(
+                            post = post,
+                            onLike = { vm.toggleLike(post) },
+                            onOpenComments = {
+                                activeLikesPost = null
+                                activeCommentsPost = post
+                            },
+                            currentUserId = authState.user?.uid,
+                            onEditPost = { item, title, description ->
+                                vm.updatePostDetails(item, title, description)
+                            },
+                            onDeletePost = {
+                                vm.deletePost(it)
+                                onDeleted()
+                            },
+                            onOpenLikes = {
+                                activeCommentsPost = null
+                                activeLikesPost = post
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -392,38 +427,6 @@ fun ProfilePostsFeedScreen(
                 postId = likesPost.id,
                 showTopBar = false,
                 modifier = Modifier.fillMaxHeight(0.6f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ProfilePostsFeedList(
-    posts: List<FeedPost>,
-    initialPostIndex: Int,
-    currentUserId: String?,
-    onLike: (FeedPost) -> Unit,
-    onOpenComments: (FeedPost) -> Unit,
-    onOpenLikes: (FeedPost) -> Unit,
-    onEditPost: (FeedPost, String, String) -> Unit,
-    onDeletePost: (FeedPost) -> Unit,
-) {
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialPostIndex)
-
-    LazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        itemsIndexed(posts, key = { _, post -> post.id }) { _, post ->
-            FeedCard(
-                post = post,
-                onLike = { onLike(post) },
-                onOpenComments = { onOpenComments(post) },
-                currentUserId = currentUserId,
-                onEditPost = onEditPost,
-                onDeletePost = onDeletePost,
-                onOpenLikes = { onOpenLikes(post) },
             )
         }
     }

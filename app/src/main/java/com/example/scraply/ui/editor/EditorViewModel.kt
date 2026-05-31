@@ -150,7 +150,10 @@ class EditorViewModel(
 
     fun setAspectRatio(ratio: Float) {
         pushUndo()
-        _canvas.value = _canvas.value.copy(aspectRatio = ratio)
+        _canvas.value = _canvas.value.copy(
+            elements = _canvas.value.elements.map { EditorGeometry.fitStampInsideCanvas(it, ratio) },
+            aspectRatio = ratio,
+        )
     }
 
     private fun pushUndo() {

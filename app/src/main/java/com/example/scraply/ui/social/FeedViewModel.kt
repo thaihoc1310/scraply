@@ -33,6 +33,16 @@ class FeedViewModel(
     private var feedJob: Job? = null
     private val pendingLikeIds = mutableSetOf<String>()
 
+    init {
+        socialRepository?.deletedPostIds
+            ?.onEach { postId ->
+                _feed.value = _feed.value.copy(
+                    feed = _feed.value.feed.filterNot { it.id == postId },
+                )
+            }
+            ?.launchIn(viewModelScope)
+    }
+
     override fun onAuthUserChanged(user: ScraplyUser?) {
         if (user != null) startFeed(user.uid) else stopFeed()
     }

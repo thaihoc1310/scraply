@@ -40,8 +40,6 @@ import com.example.scraply.data.model.CanvasElementType
 import com.example.scraply.data.model.Stamp
 import com.example.scraply.ui.common.StampImage
 
-private const val StampAspectRatio = 147f / 190f
-
 val BackgroundOptions = listOf(
     "bg_chalkboard" to "Chalkboard",
     "bg_cork_board" to "Cork Board",
@@ -204,8 +202,8 @@ fun CanvasElementView(
             val stamp = stamps.firstOrNull { it.id == element.stampId }
             Box(
                 modifier = modifier
-                    .width(160.dp)
-                    .aspectRatio(StampAspectRatio),
+                    .width(EditorGeometry.StampWidthDp.dp)
+                    .aspectRatio(EditorGeometry.StampAspectRatio),
                 contentAlignment = Alignment.Center,
             ) {
                 if (stamp != null) {

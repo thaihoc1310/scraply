@@ -4,8 +4,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -53,6 +56,17 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
     val currentRoute = backStack?.destination?.route
     val currentTab = BottomTab.entries.firstOrNull { tab ->
         currentRoute == tab.route
+    }
+    var isFeedPostOpening by remember { mutableStateOf(false) }
+    var isProfilePostOpening by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == Routes.FEED) {
+            isFeedPostOpening = false
+        }
+        if (currentRoute == Routes.PROFILE) {
+            isProfilePostOpening = false
+        }
     }
 
     Scaffold(
@@ -210,7 +224,13 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             composable(Routes.FEED) {
                 FeedScreen(
                     onOpenPost = { id ->
-                        navController.navigate(Routes.feedPost(id))
+                        if (!isFeedPostOpening) {
+                            isFeedPostOpening = true
+                            navController.navigate(Routes.feedPost(id)) {
+                                popUpTo(Routes.FEED) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
                     }
                 )
             }
@@ -228,6 +248,13 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                     postId = postId,
                     showComments = showComments,
                     onBack = { navController.popBackStack() },
+                    onDeleted = {
+                        if (!navController.popBackStack(Routes.FEED, inclusive = false)) {
+                            navController.navigate(Routes.FEED) {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                 )
             }
 
@@ -245,7 +272,15 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
             composable(Routes.PROFILE) {
                 ProfileScreen(
                     onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
-                    onOpenPost = { id -> navController.navigate(Routes.profilePosts(id)) },
+                    onOpenPost = { id ->
+                        if (!isProfilePostOpening) {
+                            isProfilePostOpening = true
+                            navController.navigate(Routes.profilePosts(id)) {
+                                popUpTo(Routes.PROFILE) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 )
             }
@@ -255,9 +290,22 @@ fun ScraplyNavHost(navController: NavHostController = rememberNavController()) {
                 arguments = listOf(navArgument("postId") { type = NavType.StringType }),
             ) { backStackEntry ->
                 val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                val profileEntry = remember(backStackEntry) {
+                    navController.getBackStackEntry(Routes.PROFILE)
+                }
+                val vm: com.example.scraply.ui.social.ProfileViewModel =
+                    scraplyViewModel(viewModelStoreOwner = profileEntry)
                 ProfilePostsFeedScreen(
+                    vm = vm,
                     initialPostId = postId,
                     onBack = { navController.popBackStack() },
+                    onDeleted = {
+                        if (!navController.popBackStack(Routes.PROFILE, inclusive = false)) {
+                            navController.navigate(Routes.PROFILE) {
+                                launchSingleTop = true
+                            }
+                        }
+                    },
                 )
             }
 
