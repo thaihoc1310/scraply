@@ -123,7 +123,13 @@ class RecentCommentsViewModel(
                     }
                 }.awaitAll()
             }.onSuccess {
+                val currentGroups = _uiState.value.commentGroups
+                val newGroups = currentGroups.map { group ->
+                    group.copy(comments = group.comments.filterNot { it.commentId in toDeleteIds })
+                }.filter { it.comments.isNotEmpty() }
+
                 _uiState.value = _uiState.value.copy(
+                    commentGroups = newGroups,
                     isLoading = false,
                     isSelectionMode = false,
                     selectedCommentIds = emptySet()
@@ -133,5 +139,10 @@ class RecentCommentsViewModel(
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
+    }
+
+    fun refresh() {
+        val uid = currentUid ?: return
+        observeCurrentPage(uid, _uiState.value.limit)
     }
 }
