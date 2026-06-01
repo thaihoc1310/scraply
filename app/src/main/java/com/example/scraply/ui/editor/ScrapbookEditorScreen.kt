@@ -368,11 +368,13 @@ fun ScrapbookEditorScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTransformGestures { _, pan, zoom, _ ->
-                                val currentScale = canvasScale ?: defaultScale
-                                canvasScale = (currentScale * zoom).coerceIn(0.1f, 5.0f)
-                                canvasOffset = canvasOffset + pan
+                        .pointerInput(selectedId) {
+                            if (selectedId == null) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    val currentScale = canvasScale ?: defaultScale
+                                    canvasScale = (currentScale * zoom).coerceIn(0.1f, 5.0f)
+                                    canvasOffset = canvasOffset + pan
+                                }
                             }
                         }
                         .pointerInput(Unit) {
@@ -828,7 +830,8 @@ private fun CanvasElementOnBoard(
                                 val dx = (adjustedPanX * cosA - pan.y * sinA) * el.scale
                                 val dy = (adjustedPanX * sinA + pan.y * cosA) * el.scale
 
-                                val ns = (el.scale * zoom).coerceIn(0.2f, 4f)
+                                val maxScale = if (el.type == CanvasElementType.TEXT) 16f else 4f
+                                val ns = (el.scale * zoom).coerceIn(0.2f, maxScale)
                                 val nr = el.rotation + rot
                                 val updated = el.copy(
                                     x = el.x + dx / w,
@@ -839,8 +842,8 @@ private fun CanvasElementOnBoard(
                                 if (el.type == CanvasElementType.STAMP) {
                                     onUpdate(EditorGeometry.fitStampInsideCanvas(updated, w / h))
                                 } else {
-                                    val hwN = (size.width * el.scale / 2f) / w
-                                    val hhN = (size.height * el.scale / 2f) / h
+                                    val hwN = (size.width * ns / 2f) / w
+                                    val hhN = (size.height * ns / 2f) / h
                                     val minX = kotlin.math.min(hwN, 1f - hwN)
                                     val maxX = kotlin.math.max(hwN, 1f - hwN)
                                     val minY = kotlin.math.min(hhN, 1f - hhN)

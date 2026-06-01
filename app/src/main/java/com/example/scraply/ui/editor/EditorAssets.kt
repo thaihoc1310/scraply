@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -344,32 +345,44 @@ fun CanvasElementView(
                     focusRequester.requestFocus()
                 }
 
-                androidx.compose.foundation.text.BasicTextField(
-                    value = textFieldValue.value,
-                    onValueChange = {
-                        textFieldValue.value = it
-                        if (it.text != element.text) {
-                            onTextChange(it.text)
-                        }
-                    },
-                    textStyle = textStyle,
+                Box(
                     modifier = modifier
                         .padding(4.dp)
-                        .defaultMinSize(minWidth = 20.dp)
-                        .width(IntrinsicSize.Min)
-                        .focusRequester(focusRequester),
-                    decorationBox = { innerTextField ->
-                        Box {
-                            if (textFieldValue.value.text.isBlank()) {
-                                Text(
-                                    text = stringResource(R.string.editor_tap_to_edit),
-                                    style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
-                                )
+                        .defaultMinSize(minWidth = 20.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    // Hidden text to measure and expand the Box dynamically
+                    Text(
+                        text = element.text.ifBlank { stringResource(R.string.editor_tap_to_edit) },
+                        style = textStyle,
+                        modifier = Modifier.alpha(0f)
+                    )
+
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = textFieldValue.value,
+                        onValueChange = {
+                            textFieldValue.value = it
+                            if (it.text != element.text) {
+                                onTextChange(it.text)
                             }
-                            innerTextField()
-                        }
-                    },
-                )
+                        },
+                        textStyle = textStyle,
+                        modifier = Modifier
+                            .matchParentSize()
+                            .focusRequester(focusRequester),
+                        decorationBox = { innerTextField ->
+                            Box {
+                                if (textFieldValue.value.text.isBlank()) {
+                                    Text(
+                                        text = stringResource(R.string.editor_tap_to_edit),
+                                        style = textStyle.copy(color = textStyle.color.copy(alpha = 0.55f)),
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        },
+                    )
+                }
             } else {
                 // Read-only text display - no keyboard, no focus
                 Text(
